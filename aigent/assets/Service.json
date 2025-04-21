@@ -1,0 +1,82 @@
+[
+  {
+    "category": "Heat Pump",
+    "description": "Comprehensive solutions for heat pump installation and repair.",
+    "services": ["Supply & Installation", "Servicing & Repairing"]
+  },
+  {
+    "category": "Air Cooled Chiller",
+    "description": "Expert services for air cooled chiller systems, from setup to maintenance.",
+    "services": [
+      "Installation of Chillers",
+      "Maintenance / Operation of Chillers",
+      "Repairing of Chillers",
+      "Servicing & Descaling of Chillers"
+    ]
+  },
+  {
+    "category": "AC Service and Repair",
+    "description": "Reliable servicing and repair of central and ductable air conditioning systems.",
+    "services": [
+      "Central Air Conditioning Services",
+      "Ductable Split Type Air Conditioner Services"
+    ]
+  },
+  {
+    "category": "Cassette Air Conditioning",
+    "description": "Cassette AC services including installation, maintenance, and repair.",
+    "services": [
+      "Supply & Installation",
+      "Servicing",
+      "Maintenance",
+      "Repairing"
+    ]
+  },
+  {
+    "category": "VRV & VRF Air Conditioning",
+    "description": "Efficient VRV/VRF AC solutions for commercial and industrial use.",
+    "services": [
+      "Supply & Installation",
+      "Servicing",
+      "Maintenance",
+      "Repairing"
+    ]
+  },
+  {
+    "category": "Water Cooled Chillers",
+    "description": "Full range of water-cooled chiller services, from setup to operation.",
+    "services": [
+      "Servicing & Descaling of Chillers",
+      "Repairing of Chillers",
+      "Maintenance / Operation of Chillers",
+      "Installation of Chillers"
+    ]
+  },
+  {
+    "category": "Cold Room and Cold Storage",
+    "description": "Turnkey cold storage setup, servicing, and maintenance.",
+    "services": [
+      "Supply & Installation",
+      "Servicing",
+      "Maintenance",
+      "Repairing"
+    ]
+  },
+  {
+    "category": "FCU",
+    "description": "Fan Coil Unit (FCU) installation and repair solutions.",
+    "services": [
+      "Supply & Installation of FCUs",
+      "Repairing & Maintenance of FCUs"
+    ]
+  },
+  {
+    "category": "AHU",
+    "description": "Air Handling Unit (AHU) supply, repair, and maintenance services.",
+    "services": [
+      "Supply & Installation of AHUs",
+      "Repairing of AHUs",
+      "Operation & Maintenance of AHUs"
+    ]
+  }
+]
