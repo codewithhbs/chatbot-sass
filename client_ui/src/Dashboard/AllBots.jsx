@@ -1,4 +1,4 @@
-"use client"
+
 
 import React, { useContext, useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -301,7 +301,7 @@ const AllBots = () => {
           My Chatbots
         </h2>
         <Button
-          onClick={() => window.location.href = '/dashboard/create-chatbot'}
+          onClick={() => window.location.href = '/dashboard/chatbots'}
           className="bg-violet-600 hover:bg-violet-700"
         >
           Create New Chatbot
@@ -319,7 +319,7 @@ const AllBots = () => {
               You haven't created any chatbots yet. Create your first chatbot to enhance your website with AI assistance.
             </p>
             <Button
-              onClick={() => window.location.href = '/dashboard/create-chatbot'}
+              onClick={() => window.location.href = '/dashboard/chatbots'}
               className="bg-emerald-600 hover:bg-emerald-700"
             >
               Create Your First Chatbot

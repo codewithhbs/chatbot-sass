@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Checkbox } from "@/components/ui/checkbox"
 
 // Create axios instance with base URL and default headers
 const api = axios.create({
@@ -66,9 +67,14 @@ const CompleteSetup = () => {
     const [formData, setFormData] = useState({
         name: "",
         description: "",
+        bookingAllowed: false,
+        howManyBookingsAllowed: 0,
         subCategories: [],
         metaCode: "",
     })
+    const toggleCheckbox = () => {
+        setFormData({ ...formData, bookingAllowed: !formData.bookingAllowed });
+    };
 
     // Set up axios request interceptor to add auth token
     useEffect(() => {
@@ -186,23 +192,23 @@ const CompleteSetup = () => {
     // Create new service
     const handleCreateSubmit = async (e) => {
         e.preventDefault();
-    
+
         if (!formData.name.trim()) {
             toast.error("Service name is required");
             return;
         }
-    
+
         const finalFormData = {
             ...formData,
             metaCode: metaCodeFromUrl || formData.metaCode,
         };
-    
+
         try {
             setSubmitting(true);
             setError(null);
-    
+
             const response = await api.post("/service", finalFormData);
-    
+
             if (response.data.success) {
                 toast.success("Service created successfully");
                 setIsCreateModalOpen(false);
@@ -216,7 +222,7 @@ const CompleteSetup = () => {
             setSubmitting(false);
         }
     };
-    
+
 
     // Update existing service
     const handleUpdateSubmit = async (e) => {
@@ -429,7 +435,7 @@ const CompleteSetup = () => {
                     ) : viewMode === "grid" ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {filteredServices.map((service) => (
-                                <Card key={service._id} className="w-full hover:shadow-md transition-shadow">
+                                <Card key={service._id} className="w-full relative hover:shadow-md transition-shadow">
                                     <CardHeader className="pb-2">
                                         <div className="flex justify-between items-start">
                                             <div>
@@ -447,6 +453,7 @@ const CompleteSetup = () => {
                                                         <Edit className="h-4 w-4 mr-2" />
                                                         Edit
                                                     </DropdownMenuItem>
+
                                                     <DropdownMenuItem
                                                         className="text-destructive focus:text-destructive"
                                                         onClick={() => handleDeleteClick(service)}
@@ -462,6 +469,14 @@ const CompleteSetup = () => {
                                         <p className="text-sm text-muted-foreground line-clamp-2 mb-4 h-10">
                                             {service.description || "No description provided"}
                                         </p>
+                                        <span
+                                            className={`inline-block absolute top-0 right-0 px-3 py-1 text-xs font-semibold rounded-full ${service.bookingAllowed
+                                                ? 'bg-green-100 text-green-800'
+                                                : 'bg-red-100 text-red-800'
+                                                }`}
+                                        >
+                                            {service.bookingAllowed ? 'Booking Allowed' : 'Booking Not Allowed'}
+                                        </span>
 
                                         <div className="space-y-2">
                                             <div className="flex items-center justify-between">
@@ -627,6 +642,41 @@ const CompleteSetup = () => {
                                     required
                                 />
                             </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-metaCode">
+                                    No of Bookings Allowed <span className="text-red-500">*</span>
+                                </Label>
+                                <Input
+                                    id="edit-metaCode"
+                                    name="howManyBookingsAllowed"
+                                    value={formData.howManyBookingsAllowed}
+                                    onChange={handleChange}
+
+                                    placeholder="  No of Bookings Allowed"
+                                    required
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                {/* Custom Checkbox */}
+                                <div
+                                    onClick={toggleCheckbox}
+                                    className={`flex items-center cursor-pointer space-x-2`}
+                                >
+                                    <div
+                                        className={`w-5 h-5 border-2 rounded-md flex justify-center items-center ${formData.bookingAllowed ? 'bg-blue-500' : 'bg-white'} border-gray-400`}
+                                    >
+                                        {formData.bookingAllowed && <div className="w-3 h-3 bg-white rounded-full"></div>}
+                                    </div>
+                                    <p className={`text-sm ${formData.bookingAllowed ? 'text-green-500' : 'text-red-500'}`}>
+                                        {formData.bookingAllowed
+                                            ? "Booking is allowed."
+                                            : "Booking is not allowed."}
+                                    </p>
+                                </div>
+
+                              
+                            </div>
 
                             <Separator />
 
@@ -734,6 +784,42 @@ const CompleteSetup = () => {
                                     placeholder="Enter meta code"
                                     required
                                 />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-metaCode">
+                                    No of Bookings Allowed <span className="text-red-500">*</span>
+                                </Label>
+                                <Input
+                                    id="edit-metaCode"
+                                    name="howManyBookingsAllowed"
+                                    value={formData.howManyBookingsAllowed}
+                                    onChange={handleChange}
+
+                                    placeholder="  No of Bookings Allowed"
+                                    required
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                {/* Custom Checkbox */}
+                                <div
+                                    onClick={toggleCheckbox}
+                                    className={`flex items-center cursor-pointer space-x-2`}
+                                >
+                                    <div
+                                        className={`w-5 h-5 border-2 rounded-md flex justify-center items-center ${formData.bookingAllowed ? 'bg-blue-500' : 'bg-white'} border-gray-400`}
+                                    >
+                                        {formData.bookingAllowed && <div className="w-3 h-3 bg-white rounded-full"></div>}
+                                    </div>
+                                    <p className={`text-sm ${formData.bookingAllowed ? 'text-green-500' : 'text-red-500'}`}>
+                                        {formData.bookingAllowed
+                                            ? "Booking is allowed."
+                                            : "Booking is not allowed."}
+                                    </p>
+                                </div>
+
+                                {/* Dynamic Text Based on Booking Allowed */}
+
                             </div>
 
                             <Separator />

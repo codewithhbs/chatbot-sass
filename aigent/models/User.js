@@ -5,7 +5,7 @@ const userSchema = new mongoose.Schema({
   email: { type: String, unique: true },
   password: String, 
   picture: String,
-  authType: { type: String, enum: ["google", "custom"], default: "custom" }
-});
+authType: { type: String, enum: ["google", "custom"], default: "custom" }
+},{timestamps: true});
 
 module.exports = mongoose.model("User", userSchema);

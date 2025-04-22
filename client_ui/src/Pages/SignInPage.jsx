@@ -45,9 +45,7 @@ const SignInPage = () => {
       toast.success("You have successfully signed in!");
       Cookies.set("_usertoken", res.data.token, { expires: 7 });
 
-      setTimeout(() => {
-        navigate("/dashboard");
-      }, 1500);
+     window.location.href = "/dashboard";
     } catch (error) {
       console.log("error",error.response.data.message);
       toast.error(error.response.data.message);
@@ -68,9 +66,7 @@ const SignInPage = () => {
       toast.success("You have successfully signed in!");
       Cookies.set("_usertoken", res.data.token, { expires: 7 });
 
-      setTimeout(() => {
-        navigate("/dashboard");
-      }, 1500);
+      window.location.href = "/dashboard";
     } catch (err) {
       console.error(err);
       toast.error("Google login failed. Please try again.");

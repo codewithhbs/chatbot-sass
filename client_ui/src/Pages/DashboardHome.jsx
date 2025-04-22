@@ -1,401 +1,482 @@
+import React, { useState, useEffect, useContext } from "react";
+import axios from "axios";
 
 
-import { Button } from "../components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
-import {
-    MessageSquare,
-    BarChart,
 
-    Plus,
-    ChevronDown,
+// UI Components
+import { Button } from "../components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { Progress } from "../components/ui/progress";
+import { Separator } from "../components/ui/separator";
+import { Badge } from "../components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 
-    Users,
-} from "lucide-react"
+// Icons
+import { MessageSquare, BarChart, Calendar, Clock, Users, Plus, AlertCircle, CheckCircle, ExternalLink, ChevronRight, Loader2, User, Percent, Timer } from 'lucide-react';
+import AuthContext from "@/context/authContext";
+import { toast } from "sonner";
+import RecentChats from "@/Dashboard/RecentChats";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-import { Avatar, AvatarFallback } from "../components/ui/avatar"
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-
-    DropdownMenuTrigger,
-} from "../components/ui/dropdown-menu"
-import { Link } from "react-router-dom"
 const DashboardHome = () => {
+  const { token } = useContext(AuthContext);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [bots, setBots] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingBots, setLoadingBots] = useState(true);
+  const [selectedBot, setSelectedBot] = useState(bots[0]?.metaCode || '');
+
+  useEffect(() => {
+    if (bots.length > 0) {
+      setSelectedBot(bots[0].metaCode); // Set to first bot's metaCode
+    }
+  }, [bots]);
+  // Fetch dashboard data
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      if (!selectedBot) return;
+      setLoading(true);
+      try {
+        const response = await axios.get(
+          `http://localhost:7400/api/auth/dashboard-data?metaCode=${selectedBot}`
+        );
+        setDashboardData(response.data);
+        setLoading(false);
+      } catch (error) {
+        setLoading(false);
+        toast(error.response?.data?.message || "Failed to fetch dashboard data.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [selectedBot]);
+
+  // Fetch chatbots
+  useEffect(() => {
+    const fetchChatbots = async () => {
+      setLoadingBots(true);
+      try {
+        const res = await axios.get(
+          `http://localhost:7400/api/auth/get-my-chatbot?token=${token}`
+        );
+        setBots(res.data);
+      } catch (err) {
+        const errorMessage = err.response?.data?.message || "Could not fetch your chatbots";
+        toast({
+          variant: "destructive",
+          title: "Failed to fetch chatbots",
+          description: errorMessage,
+          icon: <AlertCircle className="h-5 w-5" />
+        });
+      } finally {
+        setLoadingBots(false);
+      }
+    };
+
+    if (token) {
+      fetchChatbots();
+    }
+  }, [token]);
+
+  // Loading state
+  if (loading && !dashboardData) {
     return (
-        <>
-            <main className="flex-1 p-4 md:p-6 overflow-auto">
-                <div className="max-w-7xl mx-auto">
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-                        <div>
-                            <h1 className="text-2xl font-bold">Dashboard</h1>
-                            <p className="text-gray-500">Welcome back, John Doe</p>
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Loading dashboard data...</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto p-4 md:p-6">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground mt-1">
+            Monitor and manage your chatbot performance
+          </p>
+        </div>
+        <div className="mt-4 md:mt-0 flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <Select value={selectedBot} onValueChange={(value) => setSelectedBot(value)}>
+              <SelectTrigger className="border border-gray-300 rounded-md px-3 py-2 text-sm">
+                <SelectValue placeholder="Select Bot" />
+              </SelectTrigger>
+              <SelectContent>
+                {bots.map((bot) => (
+                  <SelectItem key={bot.metaCode} value={bot.metaCode}>
+                    {bot.metaCode}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button variant="outline">
+            <Calendar className="mr-2 h-4 w-4" />
+            Last 7 Days
+          </Button>
+          <Button onClick={() => window.location.href = '/dashboard/chatbots'}>
+            <Plus className="mr-2 h-4 w-4" />
+            New Chatbot
+          </Button>
+        </div>
+      </div>
+
+      {/* Key Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total Chats</p>
+                <h3 className="text-2xl font-bold mt-1">{dashboardData?.totalChatsIn7Days || 0}</h3>
+              </div>
+              <div className="bg-primary/10 p-3 rounded-full">
+                <MessageSquare className="h-6 w-6 text-primary" />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center text-sm">
+              <span className="text-green-500 font-medium">
+                {dashboardData?.chatConversionRate || "0%"}
+              </span>
+              <span className="text-muted-foreground ml-1">conversion rate</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Bookings</p>
+                <h3 className="text-2xl font-bold mt-1">{dashboardData?.bookingsIn7Days || 0}</h3>
+              </div>
+              <div className="bg-green-100 p-3 rounded-full">
+                <CheckCircle className="h-6 w-6 text-green-600" />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center text-sm">
+              <span className="text-green-500 font-medium">
+                {dashboardData?.bookingConversionRate || "0%"}
+              </span>
+              <span className="text-muted-foreground ml-1">booking rate</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Unique Users</p>
+                <h3 className="text-2xl font-bold mt-1">{dashboardData?.totalUniqueChatUsers || 0}</h3>
+              </div>
+              <div className="bg-blue-100 p-3 rounded-full">
+                <Users className="h-6 w-6 text-blue-600" />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center text-sm">
+              <span className="text-blue-500 font-medium">
+                {dashboardData?.totalUniqueBookingUsers || 0}
+              </span>
+              <span className="text-muted-foreground ml-1">converted to bookings</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Avg. Chat Time</p>
+                <h3 className="text-2xl font-bold mt-1">{dashboardData?.averageChatTime || "0s"}</h3>
+              </div>
+              <div className="bg-orange-100 p-3 rounded-full">
+                <Timer className="h-6 w-6 text-orange-600" />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center text-sm">
+              <span className="text-muted-foreground">
+                {dashboardData?.chatsWithNameAndContact || 0} chats with contact info
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Main Content Tabs */}
+      <Tabs defaultValue="overview" className="mb-8">
+        <TabsList className="mb-6">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="chatbots">My Chatbots</TabsTrigger>
+          <TabsTrigger value="integrations">Integrations</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Upcoming Bookings */}
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle>Upcoming Bookings</CardTitle>
+                <CardDescription>
+                  You have {dashboardData?.upcomingBookings?.reduce((acc, booking) => acc + booking.totalBookings, 0) || 0} upcoming bookings
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {dashboardData?.upcomingBookings?.length > 0 ? (
+                  <div className="space-y-4">
+                    {dashboardData.upcomingBookings.map((booking, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="bg-primary/10 p-2 rounded-full">
+                            <Calendar className="h-5 w-5 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-medium">{booking.date}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {booking.totalBookings} {booking.totalBookings === 1 ? "booking" : "bookings"}
+                            </p>
+                          </div>
                         </div>
-                        <div className="mt-4 md:mt-0">
-                            <Button>
-                                <Plus className="mr-2 h-4 w-4" />
-                                Create New Chatbot
-                            </Button>
-                        </div>
-                    </div>
+                        <Button variant="ghost" size="sm">
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium">No upcoming bookings</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Bookings will appear here when customers schedule appointments.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
-                    {/* Stats Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                        <Card>
-                            <CardContent className="p-6">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-500">Total Conversations</p>
-                                        <h3 className="text-2xl font-bold mt-1">1,284</h3>
-                                    </div>
-                                    <div className="bg-blue-100 p-3 rounded-full">
-                                        <MessageSquare className="h-6 w-6 text-blue-600" />
-                                    </div>
-                                </div>
-                                <div className="mt-4 flex items-center text-sm">
-                                    <span className="text-green-500 font-medium">+12.5%</span>
-                                    <span className="text-gray-500 ml-1">from last month</span>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card>
-                            <CardContent className="p-6">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-500">Active Users</p>
-                                        <h3 className="text-2xl font-bold mt-1">342</h3>
-                                    </div>
-                                    <div className="bg-green-100 p-3 rounded-full">
-                                        <Users className="h-6 w-6 text-green-600" />
-                                    </div>
-                                </div>
-                                <div className="mt-4 flex items-center text-sm">
-                                    <span className="text-green-500 font-medium">+8.2%</span>
-                                    <span className="text-gray-500 ml-1">from last month</span>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card>
-                            <CardContent className="p-6">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-500">Response Rate</p>
-                                        <h3 className="text-2xl font-bold mt-1">94.2%</h3>
-                                    </div>
-                                    <div className="bg-purple-100 p-3 rounded-full">
-                                        <BarChart className="h-6 w-6 text-purple-600" />
-                                    </div>
-                                </div>
-                                <div className="mt-4 flex items-center text-sm">
-                                    <span className="text-green-500 font-medium">+1.8%</span>
-                                    <span className="text-gray-500 ml-1">from last month</span>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card>
-                            <CardContent className="p-6">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-500">Avg. Response Time</p>
-                                        <h3 className="text-2xl font-bold mt-1">1.2s</h3>
-                                    </div>
-                                    <div className="bg-yellow-100 p-3 rounded-full">
-                                        <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                                            />
-                                        </svg>
-                                    </div>
-                                </div>
-                                <div className="mt-4 flex items-center text-sm">
-                                    <span className="text-red-500 font-medium">+0.3s</span>
-                                    <span className="text-gray-500 ml-1">from last month</span>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-
-                    {/* Tabs Section */}
-                    <Tabs defaultValue="chatbots" className="mb-6">
-                        <TabsList className="mb-4">
-                            <TabsTrigger value="chatbots">My Chatbots</TabsTrigger>
-                            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-                            <TabsTrigger value="integrations">Integrations</TabsTrigger>
-                        </TabsList>
-
-                        <TabsContent value="chatbots">
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {/* Existing Chatbot */}
-                                <Card>
-                                    <CardHeader className="pb-2">
-                                        <CardTitle className="text-lg">Customer Support Bot</CardTitle>
-                                        <CardDescription>Created 2 months ago</CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="space-y-4">
-                                            <div className="flex items-center justify-between text-sm">
-                                                <span className="text-gray-500">Status</span>
-                                                <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs">Active</span>
-                                            </div>
-                                            <div className="flex items-center justify-between text-sm">
-                                                <span className="text-gray-500">Conversations</span>
-                                                <span>842</span>
-                                            </div>
-                                            <div className="flex items-center justify-between text-sm">
-                                                <span className="text-gray-500">Satisfaction</span>
-                                                <span>92%</span>
-                                            </div>
-                                            <div className="pt-2">
-                                                <Button variant="outline" className="w-full">
-                                                    Manage
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                {/* Existing Chatbot */}
-                                <Card>
-                                    <CardHeader className="pb-2">
-                                        <CardTitle className="text-lg">Sales Assistant</CardTitle>
-                                        <CardDescription>Created 1 month ago</CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="space-y-4">
-                                            <div className="flex items-center justify-between text-sm">
-                                                <span className="text-gray-500">Status</span>
-                                                <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs">Active</span>
-                                            </div>
-                                            <div className="flex items-center justify-between text-sm">
-                                                <span className="text-gray-500">Conversations</span>
-                                                <span>324</span>
-                                            </div>
-                                            <div className="flex items-center justify-between text-sm">
-                                                <span className="text-gray-500">Satisfaction</span>
-                                                <span>88%</span>
-                                            </div>
-                                            <div className="pt-2">
-                                                <Button variant="outline" className="w-full">
-                                                    Manage
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                {/* Create New Chatbot Card */}
-                                <Card className="border-dashed">
-                                    <CardContent className="p-6 flex flex-col items-center justify-center h-full min-h-[220px]">
-                                        <div className="bg-blue-100 p-3 rounded-full mb-4">
-                                            <Plus className="h-6 w-6 text-blue-600" />
-                                        </div>
-                                        <h3 className="text-lg font-medium mb-2">Create New Chatbot</h3>
-                                        <p className="text-gray-500 text-sm text-center mb-4">
-                                            Set up a new chatbot for your website or application
-                                        </p>
-                                        <Link to="/dashboard/chatbots">
-                                            <Button>Get Started</Button>
-                                        </Link>
-                                    </CardContent>
-                                </Card>
-                            </div>
-                        </TabsContent>
-
-                        <TabsContent value="analytics">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Analytics Overview</CardTitle>
-                                    <CardDescription>View detailed analytics for all your chatbots</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="h-[300px] flex items-center justify-center border rounded-md bg-gray-50">
-                                        <p className="text-gray-500">Analytics charts will appear here</p>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-
-                        <TabsContent value="integrations">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Available Integrations</CardTitle>
-                                    <CardDescription>Connect your chatbots with other services</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                        <div className="border rounded-md p-4 flex items-center space-x-4">
-                                            <div className="bg-blue-100 p-2 rounded-md">
-                                                <svg className="h-6 w-6 text-blue-600" viewBox="0 0 24 24" fill="none">
-                                                    <path
-                                                        d="M18 8V7.2C18 6.0799 18 5.51984 17.782 5.09202C17.5903 4.71569 17.2843 4.40973 16.908 4.21799C16.4802 4 15.9201 4 14.8 4H9.2C8.07989 4 7.51984 4 7.09202 4.21799C6.71569 4.40973 6.40973 4.71569 6.21799 5.09202C6 5.51984 6 6.0799 6 7.2V8M6 8H18M6 8H4M18 8H20M9 13V17M15 13V17M3 8H21V16.8C21 17.9201 21 18.4802 20.782 18.908C20.5903 19.2843 20.2843 19.5903 19.908 19.782C19.4802 20 18.9201 20 17.8 20H6.2C5.0799 20 4.51984 20 4.09202 19.782C3.71569 19.5903 3.40973 19.2843 3.21799 18.908C3 18.4802 3 17.9201 3 16.8V8Z"
-                                                        stroke="currentColor"
-                                                        strokeWidth="2"
-                                                        strokeLinecap="round"
-                                                        strokeLinejoin="round"
-                                                    />
-                                                </svg>
-                                            </div>
-                                            <div>
-                                                <h3 className="font-medium">Slack</h3>
-                                                <p className="text-sm text-gray-500">Connect with Slack</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="border rounded-md p-4 flex items-center space-x-4">
-                                            <div className="bg-blue-100 p-2 rounded-md">
-                                                <svg className="h-6 w-6 text-blue-600" viewBox="0 0 24 24" fill="none">
-                                                    <path
-                                                        d="M21 8V16.8C21 17.9201 21 18.4802 20.782 18.908C20.5903 19.2843 20.2843 19.5903 19.908 19.782C19.4802 20 18.9201 20 17.8 20H6.2C5.0799 20 4.51984 20 4.09202 19.782C3.71569 19.5903 3.40973 19.2843 3.21799 18.908C3 18.4802 3 17.9201 3 16.8V8M21 8L14.5 3.5C13.4139 2.77543 12.8708 2.41315 12.2855 2.2723C11.7787 2.14848 11.2475 2.14848 10.7408 2.2723C10.1555 2.41315 9.61251 2.77543 8.52652 3.5L2 8M21 8H3"
-                                                        stroke="currentColor"
-                                                        strokeWidth="2"
-                                                        strokeLinecap="round"
-                                                        strokeLinejoin="round"
-                                                    />
-                                                </svg>
-                                            </div>
-                                            <div>
-                                                <h3 className="font-medium">Email</h3>
-                                                <p className="text-sm text-gray-500">Email integration</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="border rounded-md p-4 flex items-center space-x-4">
-                                            <div className="bg-blue-100 p-2 rounded-md">
-                                                <svg className="h-6 w-6 text-blue-600" viewBox="0 0 24 24" fill="none">
-                                                    <path
-                                                        d="M9 12.75L11.25 15L15 9.75M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
-                                                        stroke="currentColor"
-                                                        strokeWidth="2"
-                                                        strokeLinecap="round"
-                                                        strokeLinejoin="round"
-                                                    />
-                                                </svg>
-                                            </div>
-                                            <div>
-                                                <h3 className="font-medium">Zendesk</h3>
-                                                <p className="text-sm text-gray-500">Customer support</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-                    </Tabs>
-
-                    {/* Recent Activity */}
-                    <Card>
-                        <CardHeader>
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <CardTitle>Recent Activity</CardTitle>
-                                    <CardDescription>Latest conversations from your chatbots</CardDescription>
-                                </div>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="outline" size="sm">
-                                            All Chatbots
-                                            <ChevronDown className="ml-2 h-4 w-4" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuItem>All Chatbots</DropdownMenuItem>
-                                        <DropdownMenuItem>Customer Support Bot</DropdownMenuItem>
-                                        <DropdownMenuItem>Sales Assistant</DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-4">
-                                {/* Activity Item */}
-                                <div className="flex items-start space-x-4 pb-4 border-b">
-                                    <Avatar className="h-10 w-10">
-                                        <AvatarFallback>JD</AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex-1 space-y-1">
-                                        <div className="flex items-center justify-between">
-                                            <div className="font-medium">John Doe</div>
-                                            <div className="text-xs text-gray-500">2 hours ago</div>
-                                        </div>
-                                        <p className="text-sm text-gray-600">Asked about product pricing and availability</p>
-                                        <div className="flex items-center space-x-2 text-xs text-gray-500">
-                                            <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Sales Assistant</span>
-                                            <span>12 messages</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Activity Item */}
-                                <div className="flex items-start space-x-4 pb-4 border-b">
-                                    <Avatar className="h-10 w-10">
-                                        <AvatarFallback>AS</AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex-1 space-y-1">
-                                        <div className="flex items-center justify-between">
-                                            <div className="font-medium">Alice Smith</div>
-                                            <div className="text-xs text-gray-500">5 hours ago</div>
-                                        </div>
-                                        <p className="text-sm text-gray-600">Reported an issue with account login</p>
-                                        <div className="flex items-center space-x-2 text-xs text-gray-500">
-                                            <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Customer Support Bot</span>
-                                            <span>8 messages</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Activity Item */}
-                                <div className="flex items-start space-x-4 pb-4 border-b">
-                                    <Avatar className="h-10 w-10">
-                                        <AvatarFallback>RJ</AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex-1 space-y-1">
-                                        <div className="flex items-center justify-between">
-                                            <div className="font-medium">Robert Johnson</div>
-                                            <div className="text-xs text-gray-500">Yesterday</div>
-                                        </div>
-                                        <p className="text-sm text-gray-600">Requested information about enterprise plans</p>
-                                        <div className="flex items-center space-x-2 text-xs text-gray-500">
-                                            <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Sales Assistant</span>
-                                            <span>15 messages</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Activity Item */}
-                                <div className="flex items-start space-x-4">
-                                    <Avatar className="h-10 w-10">
-                                        <AvatarFallback>EW</AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex-1 space-y-1">
-                                        <div className="flex items-center justify-between">
-                                            <div className="font-medium">Emma Wilson</div>
-                                            <div className="text-xs text-gray-500">2 days ago</div>
-                                        </div>
-                                        <p className="text-sm text-gray-600">Asked about integration with Shopify</p>
-                                        <div className="flex items-center space-x-2 text-xs text-gray-500">
-                                            <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Customer Support Bot</span>
-                                            <span>6 messages</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="mt-4 text-center">
-                                <Button variant="link">View All Activity</Button>
-                            </div>
-                        </CardContent>
-                    </Card>
+            {/* Conversion Metrics */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Conversion Metrics</CardTitle>
+                <CardDescription>Performance overview</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium">Chat Conversion</span>
+                    <span className="text-sm font-medium">{dashboardData?.chatConversionRate || "0%"}</span>
+                  </div>
+                  <Progress value={parseFloat(dashboardData?.chatConversionRate || "0")} className="h-2" />
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {dashboardData?.chatsWithNameAndContact || 0} of {dashboardData?.totalChatsIn7Days || 0} chats collected contact info
+                  </p>
                 </div>
-            </main>
-        </>
-    )
-}
 
-export default DashboardHome
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium">Booking Rate</span>
+                    <span className="text-sm font-medium">{dashboardData?.bookingConversionRate || "0%"}</span>
+                  </div>
+                  <Progress value={parseFloat(dashboardData?.bookingConversionRate || "0")} className="h-2" />
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {dashboardData?.bookingsIn7Days || 0} bookings from {dashboardData?.chatsWithNameAndContact || 0} contacts
+                  </p>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium">Avg. Response Time</span>
+                    <span className="text-sm font-medium">{dashboardData?.averageChatTime || "0s"}</span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">
+                      Average time users spend in chat
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="chatbots">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {loadingBots ? (
+              Array(3).fill(0).map((_, i) => (
+                <Card key={i} className="opacity-70">
+                  <CardHeader className="pb-2 animate-pulse">
+                    <div className="h-6 bg-muted rounded w-3/4 mb-2"></div>
+                    <div className="h-4 bg-muted rounded w-1/2"></div>
+                  </CardHeader>
+                  <CardContent className="animate-pulse">
+                    <div className="space-y-4">
+                      <div className="h-4 bg-muted rounded"></div>
+                      <div className="h-4 bg-muted rounded"></div>
+                      <div className="h-4 bg-muted rounded"></div>
+                      <div className="h-8 bg-muted rounded mt-4"></div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <>
+                {bots.length > 0 ? (
+                  bots.map((bot, index) => (
+                    <Card key={index}>
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg">{bot.titleShowAtChatBot || bot.website_name}</CardTitle>
+                          <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">
+                            Active
+                          </Badge>
+                        </div>
+                        <CardDescription>
+                          {bot.url}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2">
+                            {bot.logo ? (
+                              <Avatar className="h-8 w-8">
+                                <AvatarImage src={bot.logo || "/placeholder.svg"} alt={bot.website_name} />
+                                <AvatarFallback>{bot.website_name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                              </Avatar>
+                            ) : (
+                              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                <User className="h-4 w-4 text-primary" />
+                              </div>
+                            )}
+                            <div>
+                              <p className="text-sm font-medium">{bot.website_name}</p>
+                              <p className="text-xs text-muted-foreground">ID: {bot.website_id}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Meta Code</span>
+                            <span className="font-mono text-xs bg-muted px-2 py-1 rounded">{bot.metaCode}</span>
+                          </div>
+
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Hours</span>
+                            <span>{bot.timings?.open} - {bot.timings?.close}</span>
+                          </div>
+
+                          <div className="pt-2 cursor-pointer flex gap-2">
+                            <Button className="cursor-pointer" onClick={(e) => window.location.href = `/dashboard/chatbot/${bot._id}?metaCode=${bot.metaCode}`} variant="outline" className="w-full">
+                              Manage
+                            </Button>
+                            <Button className="cursor-pointer" onClick={(e) => window.location.href = `http://localhost:5173/?metacode=${bot.metaCode}`} variant="secondary" size="icon">
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <Card className="col-span-full">
+                    <CardContent className="p-6 flex flex-col items-center justify-center text-center">
+                      <div className="bg-primary/10 p-3 rounded-full mb-4">
+                        <MessageSquare className="h-6 w-6 text-primary" />
+                      </div>
+                      <h3 className="text-lg font-medium mb-2">No Chatbots Found</h3>
+                      <p className="text-muted-foreground mb-4">
+                        You haven't created any chatbots yet. Get started by creating your first chatbot.
+                      </p>
+                      <Button onClick={() => window.location.href = '/dashboard/chatbots'}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Create New Chatbot
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Create New Chatbot Card */}
+                {bots.length > 0 && (
+                  <Card className="border-dashed border-2">
+                    <CardContent className="p-6 flex flex-col items-center justify-center h-full min-h-[220px]">
+                      <div className="bg-primary/10 p-3 rounded-full mb-4">
+                        <Plus className="h-6 w-6 text-primary" />
+                      </div>
+                      <h3 className="text-lg font-medium mb-2">Create New Chatbot</h3>
+                      <p className="text-muted-foreground text-sm text-center mb-4">
+                        Set up a new chatbot for your website or application
+                      </p>
+                      <Button onClick={() => window.location.href = '/dashboard/chatbots'}>Get Started</Button>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="integrations">
+          <Card>
+            <CardHeader>
+              <CardTitle>Chatbot Integration</CardTitle>
+              <CardDescription>
+                Add your chatbot to any website with a simple code snippet
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div className="p-4 border rounded-lg bg-muted/50">
+                  <h3 className="font-medium mb-2">Your Meta Code</h3>
+                  <div className="flex items-center gap-2 mb-4">
+                    <code className="bg-background p-2 rounded border flex-1 font-mono text-sm">
+                      chatbot-QUP9P-CCQS2
+                    </code>
+                 
+                  </div>
+
+                  <h3 className="font-medium mb-2">Integration Code</h3>
+                  <div className="bg-background p-3 rounded border font-mono text-sm overflow-x-auto">
+                    <pre>{`<iframe 
+  src="https://chatWave.hoverbusinessservices.com/?metacode=chatbotid" 
+  width="400px" 
+  height="500px" 
+  style="border:none;">
+</iframe>
+`}</pre>
+                  </div>
+                </div>
+
+
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Recent Activity */}
+      {/* <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Recent Activity</CardTitle>
+            <CardDescription>
+              Latest chat interactions and bookings
+            </CardDescription>
+          </div>
+          <Button variant="outline" size="sm">
+            View All
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <RecentChats />
+        </CardContent>
+      </Card> */}
+    </div>
+  );
+};
+
+export default DashboardHome;

@@ -30,7 +30,7 @@ export const AuthProvider = ({ children }) => {
             } catch (err) {
                 console.error("Authentication error:", err);
                 setError(err.response?.data?.message || "Session expired. Please log in again.");
-               
+
             } finally {
                 setLoading(false);
             }
@@ -47,6 +47,7 @@ export const AuthProvider = ({ children }) => {
                 },
                 withCredentials: true,
             });
+            window.location.href = "/";
         } catch (err) {
             console.warn("Logout error:", err);
         } finally {

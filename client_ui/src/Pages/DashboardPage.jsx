@@ -12,6 +12,7 @@ import {
   ChevronDown,
   X,
   Users,
+  LogOut,
 } from "lucide-react"
 
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar"
@@ -29,6 +30,9 @@ import DashboardHome from "./DashboardHome"
 import ChatBotPage from "@/Dashboard/ChatBotPage"
 import AllBots from "@/Dashboard/AllBots"
 import CompleteSetup from "@/Dashboard/CompleteSetup"
+import Bookings from "@/Dashboard/Bookings"
+import Customers from "@/Dashboard/Customers"
+import Profile from "./Profile"
 
 
 const DashboardPage = () => {
@@ -49,7 +53,7 @@ const DashboardPage = () => {
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
           <h1 className="text-2xl font-bold">Please log in to access the dashboard</h1>
-          <Link to="/login" className="mt-4 inline-block text-blue-600 hover:underline">
+          <Link to="/signin" className="mt-4 inline-block text-blue-600 hover:underline">
             Go to Login
           </Link>
         </div>
@@ -85,7 +89,7 @@ const DashboardPage = () => {
                     <BarChart className="h-5 w-5" />
                     <span>Dashboard</span>
                   </Link>
-                  <Link to="/dashboard/chatbots"
+                  <Link  to="/dashboard/all-chatbots"
                     className="flex items-center space-x-3 px-3 py-2 rounded-md text-gray-700 hover:bg-gray-100"
                     onClick={toggleMobileMenu}>
                     <MessageSquare className="h-5 w-5" />
@@ -97,18 +101,19 @@ const DashboardPage = () => {
                     <Users className="h-5 w-5" />
                     <span>Customers</span>
                   </Link>
-                  <Link to="/dashboard/integrations"
+                  <Link  to="/dashboard/Bookings" 
                     className="flex items-center space-x-3 px-3 py-2 rounded-md text-gray-700 hover:bg-gray-100"
                     onClick={toggleMobileMenu}>
                     <Code className="h-5 w-5" />
-                    <span>Integrations</span>
+                    <span>Bookings</span>
                   </Link>
-                  <Link to="/dashboard/settings"
+                  <Link to="/dashboard/Profile" 
                     className="flex items-center space-x-3 px-3 py-2 rounded-md text-gray-700 hover:bg-gray-100"
                     onClick={toggleMobileMenu}>
-                    <Settings className="h-5 w-5" />
-                    <span>Settings</span>
+                    <Users className="h-5 w-5" />
+                    <span>Profile</span>
                   </Link>
+                 
                 </nav>
               </div>
             </div>
@@ -131,13 +136,17 @@ const DashboardPage = () => {
                 <Users className="h-5 w-5" />
                 <span>Customers</span>
               </Link>
-              <Link to="/dashboard/integrations" className="flex items-center space-x-3 px-3 py-2 rounded-md text-gray-700 hover:bg-gray-100">
+              <Link to="/dashboard/Bookings" className="flex items-center space-x-3 px-3 py-2 rounded-md text-gray-700 hover:bg-gray-100">
                 <Code className="h-5 w-5" />
-                <span>Integrations</span>
+                <span>Bookings</span>
               </Link>
-              <Link to="/dashboard/settings" className="flex items-center space-x-3 px-3 py-2 rounded-md text-gray-700 hover:bg-gray-100">
-                <Settings className="h-5 w-5" />
-                <span>Settings</span>
+              <Link to="/dashboard/Profile" className="flex items-center space-x-3 px-3 py-2 rounded-md text-gray-700 hover:bg-gray-100">
+                <Users className="h-5 w-5" />
+                <span>Profile</span>
+              </Link>
+              <Link onClick={logout} className="flex items-center space-x-3 px-3 py-2 rounded-md text-gray-700 hover:bg-gray-100">
+                <LogOut className="h-5 w-5" />
+                <span>Logout</span>
               </Link>
             </nav>
           </div>
@@ -149,7 +158,10 @@ const DashboardPage = () => {
             <Route path="/" element={<DashboardHome />} />
             <Route path="/chatbots" element={<ChatBotPage />} />
             <Route path="/all-chatbots" element={<AllBots />} />
+            <Route path="/Bookings" element={<Bookings />} />
+            <Route path="/customers" element={<Customers />} />
             <Route path="/chatbot/:id" element={<CompleteSetup />} />
+            <Route path="/Profile" element={<Profile />} />
 
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>

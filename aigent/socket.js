@@ -17,6 +17,7 @@ const getMessages = (websiteData) => ({
     serviceResponse: (service, category) => `You chose ${service} in ${category}. Please enter the full address where service is needed.`,
     invalidAddress: "The address seems incomplete. Please provide more details so our team can locate you.",
     addressResponse: (address) => `Thanks for the address: "${address}". Please select your preferred service date.`,
+    dateNotAvailable: (date, service) => `We're sorry, but all slots for ${service} on ${date} have been booked. Please select another date.`,
     bookingConfirmation: (details) => `
     Perfect! Your booking is confirmed:
 
@@ -134,6 +135,42 @@ exports.handleSocket = async (socket, metaCode) => {
         }
     };
 
+    // Check if the service has available slots for the given date
+    const checkBookingAvailability = async (serviceId, date) => {
+        try {
+
+            const service = await ServicesSchema.findById(serviceId);
+
+            if (!service || !service.bookingAllowed) {
+                return { available: false, message: "This service is not available for booking." };
+            }
+
+            const bookingsCount = await Booking.countDocuments({
+                selectedCategory: service.name,
+                serviceDate: date,
+                metaCode: metaCode,
+                status: { $ne: 'cancelled' } // Don't count cancelled bookings
+            });
+            console.log("bookingsCount:", bookingsCount);
+
+            // Check if booking limit has been reached
+            if (bookingsCount >= service.howManyBookingsAllowed) {
+                return {
+                    available: false,
+                    message: `All slots for this service on ${date} have been booked (${bookingsCount}/${service.howManyBookingsAllowed}). Please select another date.`
+                };
+            }
+
+            return {
+                available: true,
+                slotsRemaining: service.howManyBookingsAllowed - bookingsCount
+            };
+        } catch (err) {
+            console.error("Error checking booking availability:", err);
+            return { available: false, message: "Error checking availability. Please try again." };
+        }
+    };
+
     // Send welcome message
     await sendChunks(socket, messages.welcome);
     await addMessageToChat("bot", messages.welcome);
@@ -148,6 +185,7 @@ exports.handleSocket = async (socket, metaCode) => {
                 phone: "",
                 selectedCategory: "",
                 selectedService: "",
+                selectedServiceId: "",
                 address: "",
                 serviceDate: "",
                 metaCode: metaCode,
@@ -180,8 +218,9 @@ exports.handleSocket = async (socket, metaCode) => {
                     await addMessageToChat("bot", messages.phoneResponse(user.name));
                     user.step = 2;
 
-                    // Prepare service categories for display
-                    const categories = servicesList.map(service => ({
+                    // Filter and prepare service categories that have bookingAllowed=true
+                    const availableServices = servicesList.filter(service => service.bookingAllowed);
+                    const categories = availableServices.map(service => ({
                         category: service.name,
                         description: service.description
                     }));
@@ -193,8 +232,9 @@ exports.handleSocket = async (socket, metaCode) => {
                     await sendChunks(socket, messages.helpResponse);
                     await addMessageToChat("bot", messages.helpResponse);
 
-                    // Show categories again
-                    const categoriesRefresh = servicesList.map(service => ({
+                    // Show categories again (only those with bookingAllowed=true)
+                    const availableServicesRefresh = servicesList.filter(service => service.bookingAllowed);
+                    const categoriesRefresh = availableServicesRefresh.map(service => ({
                         category: service.name,
                         description: service.description
                     }));
@@ -219,7 +259,36 @@ exports.handleSocket = async (socket, metaCode) => {
                     break;
 
                 case 5:
+                    // Date selected - check if booking is available
                     user.serviceDate = message;
+
+                    // Find the service document
+                    const selectedService = await ServicesSchema.findOne({
+                        metaCode: metaCode,
+                        name: user.selectedCategory,
+                        "subCategories.name": user.selectedService
+                    });
+
+                    if (!selectedService) {
+                        await sendChunks(socket, "Sorry, this service is no longer available.");
+                        await addMessageToChat("bot", "Sorry, this service is no longer available.");
+                        break;
+                    }
+
+                    // Store service ID for later use
+                    user.selectedServiceId = selectedService._id;
+
+                    // Check availability
+                    const availability = await checkBookingAvailability(selectedService._id, user.serviceDate);
+
+                    if (!availability.available) {
+                        await sendChunks(socket, messages.dateNotAvailable(user.serviceDate, user.selectedService));
+                        await addMessageToChat("bot", messages.dateNotAvailable(user.serviceDate, user.selectedService));
+                        socket.emit("_show_date_picker"); // Ask to select another date
+                        break;
+                    }
+
+                    // Date is available, proceed with booking
                     await updateChatUserInfo({ serviceDate: user.serviceDate });
                     const confirmationMsg = messages.bookingConfirmation(user);
                     await sendChunks(socket, confirmationMsg);
@@ -246,7 +315,7 @@ exports.handleSocket = async (socket, metaCode) => {
         await addMessageToChat("user", `Selected category: ${category}`);
 
         // Find the selected service to get subcategories
-        const foundService = servicesList.find(s => s.name === category);
+        const foundService = servicesList.find(s => s.name === category && s.bookingAllowed);
 
         if (user && foundService) {
             user.selectedCategory = category;

@@ -13,12 +13,20 @@ const ServiceSchema = new mongoose.Schema({
         required: true,
         trim: true,
     },
+    bookingAllowed: {
+        type: Boolean,
+        default: false,
+    },
+    howManyBookingsAllowed: {
+        type: Number,
+        default: 0,
+    },
     description: {
         type: String,
         trim: true,
     },
     metaCode: {
-        type: String, 
+        type: String,
         required: true
     },
     userid: {
