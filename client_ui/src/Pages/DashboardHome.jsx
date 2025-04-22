@@ -442,7 +442,7 @@ const DashboardHome = () => {
                   <h3 className="font-medium mb-2">Integration Code</h3>
                   <div className="bg-background p-3 rounded border font-mono text-sm overflow-x-auto">
                     <pre>{`<iframe 
-  src="https://chatWave.hoverbusinessservices.com/?metacode=chatbotid" 
+  src="https://embeded.chat.adsdigitalmedia.com/?metacode=chatbotid" 
   width="400px" 
   height="500px" 
   style="border:none;">
