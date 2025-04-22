@@ -191,3 +191,42 @@ exports.deleteChatBot = async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 };
+
+
+exports.updateChatBot = async (req, res) => {
+    try {
+      const { info, titleShowAtChatBot } = req.body; // destructure titleShowAtChatBot separately
+      
+      console.log('Received info to update:', { info, titleShowAtChatBot });
+    
+   
+      const updatedChatbot = await Website.findByIdAndUpdate(
+        req.params.id,
+        {
+          $set: {
+            ...info,
+            titleShowAtChatBot 
+          }
+        },
+        { new: true, runValidators: true }
+      );
+    
+      if (!updatedChatbot) {
+        return res.status(404).json({ message: 'Chatbot not found' });
+      }
+    
+      // Send success response with the updated chatbot
+      return res.status(200).json({
+        message: 'Chatbot details updated successfully',
+        data: updatedChatbot,
+      });
+    
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({
+        message: 'An error occurred while updating chatbot details',
+        error: error.message,
+      });
+    }
+  };
+  

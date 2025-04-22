@@ -37,7 +37,7 @@ const SignInPage = () => {
     setIsLoading(true);
 
     try {
-      const res = await axios.post("http://localhost:7400/api/auth/login", {
+      const res = await axios.post("https://api.chatbot.adsdigitalmedia.com/api/auth/login", {
         email,
         password
       });
@@ -59,7 +59,7 @@ const SignInPage = () => {
     console.log("Google decoded data:", decoded);
 
     try {
-      const res = await axios.post("http://localhost:7400/api/auth/google-login", {
+      const res = await axios.post("https://api.chatbot.adsdigitalmedia.com/api/auth/google-login", {
         token: credentialResponse.credential
       });
 

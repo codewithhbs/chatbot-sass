@@ -2,7 +2,7 @@ const express = require("express");
 const { googleLogin, register, login, getProfileData, logout, addPasswordToMyProfile } = require("../controller/authController");
 const { verifyToken } = require("../middleware/authmiddleware");
 const { check } = require("express-validator");
-const { websiteSchemaEnter, checkMetaCode, get_my_chatBots, getMyChatBotDetailsBymetaCode, deleteChatBot } = require("../controller/WebsiteController");
+const { websiteSchemaEnter, checkMetaCode, get_my_chatBots, getMyChatBotDetailsBymetaCode, deleteChatBot, updateChatBot } = require("../controller/WebsiteController");
 const { create, getAll, getById, update, remove, addSubCategory, deleteSubCategory } = require("../controller/ServiceController");
 const { get_my_booking, get_dashboard_data, deleteBooking, confirmBooking, cancelBooking, updateBookingDetails, getUniqueCustomersByMetaCode } = require("../controller/BookingController");
 const router = express.Router();
@@ -29,6 +29,7 @@ router.post(
 );
 router.post('/check-meta-code', verifyToken, checkMetaCode)
 router.delete('/delete-chatbot/:id', verifyToken, deleteChatBot)
+router.post('/update-chatbot/:id', verifyToken, updateChatBot)
 router.get('/get-my-chatbot', verifyToken, get_my_chatBots)
 router.get('/my-chatbot', getMyChatBotDetailsBymetaCode)
 

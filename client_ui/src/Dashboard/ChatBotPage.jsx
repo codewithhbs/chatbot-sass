@@ -38,7 +38,7 @@ const ChatBotPage = () => {
     setLoading(true);
     try {
       const res = await axios.post(
-        `http://localhost:7400/api/auth/register-website?token=${token}`,
+        `https://api.chatbot.adsdigitalmedia.com/api/auth/register-website?token=${token}`,
         data
       );
       setMetaCode(res.data.metaCode);
@@ -70,7 +70,7 @@ const ChatBotPage = () => {
     try {
       // Replace with your actual verification API endpoint
       const res = await axios.post(
-        `http://localhost:7400/api/auth/check-meta-code?token=${token}`,
+        `https://api.chatbot.adsdigitalmedia.com/api/auth/check-meta-code?token=${token}`,
         {
           url: websiteUrl,
           metaCode: metaCode

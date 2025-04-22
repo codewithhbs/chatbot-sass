@@ -46,6 +46,7 @@ const AllBots = () => {
   const [editFormData, setEditFormData] = useState({
     contactNumber: '',
     address: '',
+    titleShowAtChatBot:'',
     openTime: '',
     closeTime: '',
     instagram: '',
@@ -66,7 +67,7 @@ const AllBots = () => {
     setLoading(true);
     try {
       const res = await axios.get(
-        `http://localhost:7400/api/auth/get-my-chatbot?token=${token}`
+        `https://api.chatbot.adsdigitalmedia.com/api/auth/get-my-chatbot?token=${token}`
       );
       setBots(res.data);
     } catch (err) {
@@ -87,7 +88,7 @@ const AllBots = () => {
 
     try {
       const res = await axios.post(
-        `http://localhost:7400/api/auth/check-meta-code?token=${token}`,
+        `https://api.chatbot.adsdigitalmedia.com/api/auth/check-meta-code?token=${token}`,
         {
           url: websiteUrl,
           metaCode: metaCode,
@@ -132,7 +133,7 @@ const AllBots = () => {
 
     try {
       await axios.delete(
-        `http://localhost:7400/api/auth/delete-chatbot/${botToDelete._id}?token=${token}`
+        `https://api.chatbot.adsdigitalmedia.com/api/auth/delete-chatbot/${botToDelete._id}?token=${token}`
       );
       toast.success("Chatbot deleted successfully", {
         icon: <CheckCircle className="h-5 w-5 text-green-500" />
@@ -164,6 +165,7 @@ const AllBots = () => {
     setSelectedBot(bot);
     setEditFormData({
       contactNumber: bot.info?.contactNumber || '',
+      titleShowAtChatBot: bot.titleShowAtChatBot || '',
       address: bot.info?.address || '',
       openTime: bot.info?.timings?.open || '',
       closeTime: bot.info?.timings?.close || '',
@@ -181,6 +183,7 @@ const AllBots = () => {
       contactNumber: bot.info?.contactNumber || '',
       address: bot.info?.address || '',
       openTime: bot.info?.timings?.open || '',
+      titleShowAtChatBot: bot.titleShowAtChatBot || '',
       closeTime: bot.info?.timings?.close || '',
       instagram: bot.info?.social_links?.insta || '',
       facebook: bot.info?.social_links?.fb || '',
@@ -205,6 +208,7 @@ const AllBots = () => {
       const updatedInfo = {
         ...selectedBot.info,
         contactNumber: editFormData.contactNumber,
+      
         address: editFormData.address,
         timings: {
           open: editFormData.openTime,
@@ -217,11 +221,14 @@ const AllBots = () => {
         }
       };
 
-      // API call to update the bot info
-      await axios.put(
-        `http://localhost:7400/api/auth/update-chatbot/${selectedBot._id}?token=${token}`,
-        { info: updatedInfo }
-      );
+  // API call to update the bot info
+await axios.post(
+  `https://api.chatbot.adsdigitalmedia.com/api/auth/update-chatbot/${selectedBot._id}?token=${token}`,
+  {
+    info: updatedInfo,
+    titleShowAtChatBot: editFormData.titleShowAtChatBot, 
+  }
+);
 
       // Update the bot in the state
       setBots(bots.map(bot =>
@@ -234,6 +241,7 @@ const AllBots = () => {
 
       setIsEditModalOpen(false);
     } catch (err) {
+      console.log(err)
       toast.error("Failed to update chatbot details", {
         description: err.response?.data?.message || "An error occurred while updating",
         icon: <AlertCircle className="h-5 w-5 text-red-500" />
@@ -645,7 +653,7 @@ const AllBots = () => {
 
       {/* Edit Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-3xl h-[700px] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Edit className="h-5 w-5 text-emerald-600" />
@@ -676,6 +684,17 @@ const AllBots = () => {
                 value={editFormData.address}
                 onChange={handleEditInputChange}
                 placeholder="123 Main St, City, Country"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="titleShowAtChatBot">Title Shows At Chatbot To User</Label>
+              <Input
+                id="titleShowAtChatBot"
+                name="titleShowAtChatBot"
+                value={editFormData.titleShowAtChatBot}
+                onChange={(e)=>setEditFormData({...editFormData, titleShowAtChatBot: e.target.value})}
+                placeholder="Title Shows At Chatbot To User"
+               
               />
             </div>
 

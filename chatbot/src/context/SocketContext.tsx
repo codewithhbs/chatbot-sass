@@ -43,7 +43,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children, metaCo
 
   useEffect(() => {
     // Initialize socket connection
-    const socketInstance = io("http://localhost:7400", {
+    const socketInstance = io("https://api.chatbot.adsdigitalmedia.com", {
       query: { metaCode }
     });
 
