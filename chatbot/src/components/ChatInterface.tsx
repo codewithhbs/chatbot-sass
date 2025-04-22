@@ -170,7 +170,7 @@ const ChatInterface: React.FC = () => {
           </svg>
         </div>
       ) : (
-        <div className={'fixed inset-0 bg-green-500 bg-black/50 flex items-center justify-center z-50'}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="w-full  h-[600px] mx-auto bg-white/95 dark:bg-gray-900/95 backdrop-blur-md rounded-xl overflow-hidden border border-blue-100 dark:border-blue-900 shadow-xl flex flex-col relative">
             <button
               onClick={toggleChat}
