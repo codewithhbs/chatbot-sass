@@ -39,7 +39,7 @@ const DashboardHome = () => {
       setLoading(true);
       try {
         const response = await axios.get(
-          `https://api.chatbot.adsdigitalmedia.com/api/auth/dashboard-data?metaCode=${selectedBot}`
+          `http://localhost:7400/api/auth/dashboard-data?metaCode=${selectedBot}`
         );
         setDashboardData(response.data);
         setLoading(false);
@@ -60,7 +60,7 @@ const DashboardHome = () => {
       setLoadingBots(true);
       try {
         const res = await axios.get(
-          `https://api.chatbot.adsdigitalmedia.com/api/auth/get-my-chatbot?token=${token}`
+          `http://localhost:7400/api/auth/get-my-chatbot?token=${token}`
         );
         setBots(res.data);
       } catch (err) {

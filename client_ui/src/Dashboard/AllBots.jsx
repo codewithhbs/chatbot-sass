@@ -46,7 +46,7 @@ const AllBots = () => {
   const [editFormData, setEditFormData] = useState({
     contactNumber: '',
     address: '',
-    titleShowAtChatBot:'',
+    titleShowAtChatBot: '',
     openTime: '',
     closeTime: '',
     instagram: '',
@@ -67,7 +67,7 @@ const AllBots = () => {
     setLoading(true);
     try {
       const res = await axios.get(
-        `https://api.chatbot.adsdigitalmedia.com/api/auth/get-my-chatbot?token=${token}`
+        `http://localhost:7400/api/auth/get-my-chatbot?token=${token}`
       );
       setBots(res.data);
     } catch (err) {
@@ -88,7 +88,7 @@ const AllBots = () => {
 
     try {
       const res = await axios.post(
-        `https://api.chatbot.adsdigitalmedia.com/api/auth/check-meta-code?token=${token}`,
+        `http://localhost:7400/api/auth/check-meta-code?token=${token}`,
         {
           url: websiteUrl,
           metaCode: metaCode,
@@ -133,7 +133,7 @@ const AllBots = () => {
 
     try {
       await axios.delete(
-        `https://api.chatbot.adsdigitalmedia.com/api/auth/delete-chatbot/${botToDelete._id}?token=${token}`
+        `http://localhost:7400/api/auth/delete-chatbot/${botToDelete._id}?token=${token}`
       );
       toast.success("Chatbot deleted successfully", {
         icon: <CheckCircle className="h-5 w-5 text-green-500" />
@@ -208,7 +208,7 @@ const AllBots = () => {
       const updatedInfo = {
         ...selectedBot.info,
         contactNumber: editFormData.contactNumber,
-      
+
         address: editFormData.address,
         timings: {
           open: editFormData.openTime,
@@ -221,14 +221,14 @@ const AllBots = () => {
         }
       };
 
-  // API call to update the bot info
-await axios.post(
-  `https://api.chatbot.adsdigitalmedia.com/api/auth/update-chatbot/${selectedBot._id}?token=${token}`,
-  {
-    info: updatedInfo,
-    titleShowAtChatBot: editFormData.titleShowAtChatBot, 
-  }
-);
+      // API call to update the bot info
+      await axios.post(
+        `http://localhost:7400/api/auth/update-chatbot/${selectedBot._id}?token=${token}`,
+        {
+          info: updatedInfo,
+          titleShowAtChatBot: editFormData.titleShowAtChatBot,
+        }
+      );
 
       // Update the bot in the state
       setBots(bots.map(bot =>
@@ -341,7 +341,7 @@ await axios.post(
               <Card
                 key={bot._id}
                 className="w-full overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
-                onClick={() => handleCardClick(bot)}
+              // onClick={() => handleCardClick(bot)}
               >
                 <CardHeader className="pb-2">
                   <div className="flex items-center gap-4">
@@ -463,21 +463,34 @@ await axios.post(
                 </CardContent>
 
                 <CardFooter className="flex justify-between items-center border-t pt-4">
-                  <div className="text-xs text-slate-500">
+                  {/* <div className="text-xs text-slate-500">
                     {new Date(bot.joinedData).toLocaleDateString()}
-                  </div>
+                  </div> */}
 
                   <div className="flex gap-2">
                     {bot.metaCodeVerify && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => window.location.href = `/dashboard/chatbot/${bot._id}?metaCode=${bot.metaCode}`}
-                        className="flex items-center gap-1"
-                      >
-                        <Edit className="h-4 w-4" />
-                        Complete Setup
-                      </Button>
+                      <>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => window.location.href = `/dashboard/chatbot/${bot._id}?metaCode=${bot.metaCode}`}
+                          className="flex items-center gap-1"
+                        >
+                          <Edit className="h-4 w-4" />
+                          Complete Setup
+                        </Button>
+
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => window.location.href = `/dashboard/make-flow/chatbot/${bot._id}?metaCode=${bot.metaCode}`}
+                          className="flex items-center gap-1"
+                        >
+                          
+                          Make a Flow
+                        </Button>
+                      </>
                     )}
                     <Button
                       variant="outline"
@@ -692,9 +705,9 @@ await axios.post(
                 id="titleShowAtChatBot"
                 name="titleShowAtChatBot"
                 value={editFormData.titleShowAtChatBot}
-                onChange={(e)=>setEditFormData({...editFormData, titleShowAtChatBot: e.target.value})}
+                onChange={(e) => setEditFormData({ ...editFormData, titleShowAtChatBot: e.target.value })}
                 placeholder="Title Shows At Chatbot To User"
-               
+
               />
             </div>
 

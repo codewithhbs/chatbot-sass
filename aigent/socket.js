@@ -349,7 +349,6 @@ exports.handleSocket = async (socket, metaCode) => {
     socket.on("disconnect", () => {
         console.log("User disconnected:", socket.id);
 
-        // Update chat status to abandoned if not completed
         Chat.findOneAndUpdate(
             { chatId: socket.chatId, status: { $ne: 'completed' } },
             { $set: { status: 'abandoned', lastUpdated: new Date() } },

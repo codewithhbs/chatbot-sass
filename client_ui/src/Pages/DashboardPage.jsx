@@ -33,6 +33,7 @@ import CompleteSetup from "@/Dashboard/CompleteSetup"
 import Bookings from "@/Dashboard/Bookings"
 import Customers from "@/Dashboard/Customers"
 import Profile from "./Profile"
+import FlowChatbot from "@/Flow/Flow"
 
 
 const DashboardPage = () => {
@@ -162,6 +163,7 @@ const DashboardPage = () => {
             <Route path="/customers" element={<Customers />} />
             <Route path="/chatbot/:id" element={<CompleteSetup />} />
             <Route path="/Profile" element={<Profile />} />
+            <Route path="/make-flow/chatbot/:id" element={<FlowChatbot />} />
 
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>

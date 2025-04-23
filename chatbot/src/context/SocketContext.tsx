@@ -32,9 +32,10 @@ export const useSocket = () => useContext(SocketContext);
 interface SocketProviderProps {
   children: React.ReactNode;
   metaCode: string;
+  type: string;
 }
 
-export const SocketProvider: React.FC<SocketProviderProps> = ({ children, metaCode }) => {
+export const SocketProvider: React.FC<SocketProviderProps> = ({ children, metaCode, type }) => {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -43,8 +44,8 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children, metaCo
 
   useEffect(() => {
     // Initialize socket connection
-    const socketInstance = io("https://api.chatbot.adsdigitalmedia.com", {
-      query: { metaCode }
+    const socketInstance = io("http://localhost:7400", {
+      query: { metaCode, type }
     });
 
     setSocket(socketInstance);
@@ -74,7 +75,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children, metaCo
     return () => {
       socketInstance.disconnect();
     };
-  }, [metaCode]);
+  }, [metaCode ,type]);
 
   const value = {
     socket,

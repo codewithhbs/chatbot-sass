@@ -42,7 +42,7 @@ const Customers = () => {
         try {
             console.log(bots, 'bots data',selectedMetaCode);
             setLoading(true);
-            const response = await axios.get(`https://api.chatbot.adsdigitalmedia.com/api/auth/meta-user/${selectedMetaCode}`, {
+            const response = await axios.get(`http://localhost:7400/api/auth/meta-user/${selectedMetaCode}`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },

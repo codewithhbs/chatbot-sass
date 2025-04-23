@@ -7,6 +7,7 @@ const { handleSocket } = require('./socket')
 const authRoutes = require("./routes/router");
 const cookieParser = require('cookie-parser');
 const connectToMongoDB = require('./config/database')
+const { handleSocketCustom } = require('./customSocket')
 dotenv.config()
 
 const app = express()
@@ -28,12 +29,12 @@ const io = new Server(server, {
 const sendChunks = async (socket, message) => {
     const words = message.split(" ");
     for (let i = 0; i < words.length; i++) {
-      const chunk = words[i] + (i < words.length - 1 ? " " : "");
-      socket.emit("ai_reply", { chunk });
-      await new Promise((res) => setTimeout(res, 100)); 
+        const chunk = words[i] + (i < words.length - 1 ? " " : "");
+        socket.emit("ai_reply", { chunk });
+        await new Promise((res) => setTimeout(res, 100));
     }
-  };
-  
+};
+
 
 app.get('/', (req, res) => {
     res.send("Hey i a booking ai agent")
@@ -45,10 +46,16 @@ app.use("/api/auth", authRoutes);
 
 io.on("connection", (socket) => {
     const metaCode = socket.handshake.query.metaCode;
+    const type = socket.handshake.query.type;
     console.log("User connected:", socket.id);
     console.log("User metaCode:", metaCode);
 
-    handleSocket(socket, metaCode);
+    if (type === "custom") {
+        handleSocketCustom(socket, metaCode);
+    } else {
+
+        handleSocket(socket, metaCode);
+    }
 });
 
 server.listen(PORT, () => {

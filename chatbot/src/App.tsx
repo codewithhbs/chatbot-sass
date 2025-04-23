@@ -3,9 +3,11 @@ import { SocketProvider } from './context/SocketContext';
 import ChatInterface from './components/ChatInterface';
 import ErrorState from './components/ErrorState';
 import Background from './components/Background';
+import ChatInterfacetwo from './components/ChatInterfacetwo';
 
 function App() {
   const metaCode = new URLSearchParams(window.location.search).get("metacode");
+  const type = new URLSearchParams(window.location.search).get("type");
 
   if (!metaCode) {
     return (
@@ -21,9 +23,13 @@ function App() {
 
   return (
     <div className="min-h-screen flex items-center justify-center">
-      <SocketProvider metaCode={metaCode}>
-      {/* <Background /> */}
-        <ChatInterface />
+      <SocketProvider type={type} metaCode={metaCode}>
+        {/* <Background /> */}
+        {type === "custom" ? (
+          <ChatInterfacetwo />
+        ) : (
+          <ChatInterface />
+        )}
       </SocketProvider>
     </div>
   );

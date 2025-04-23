@@ -5,6 +5,7 @@ const { check } = require("express-validator");
 const { websiteSchemaEnter, checkMetaCode, get_my_chatBots, getMyChatBotDetailsBymetaCode, deleteChatBot, updateChatBot } = require("../controller/WebsiteController");
 const { create, getAll, getById, update, remove, addSubCategory, deleteSubCategory } = require("../controller/ServiceController");
 const { get_my_booking, get_dashboard_data, deleteBooking, confirmBooking, cancelBooking, updateBookingDetails, getUniqueCustomersByMetaCode } = require("../controller/BookingController");
+const { MakeAFlowForABot, GetBotFlow } = require("../controller/FlowController");
 const router = express.Router();
 
 router.post("/google-login", googleLogin);
@@ -43,6 +44,12 @@ router.delete("/service/:id", remove);
 
 router.post("/service/:id/subcategory", addSubCategory);
 router.delete("/service/:serviceId/subcategory/:subCategoryIndex", deleteSubCategory);
+
+
+
+//Chatbot flow
+router.post('/bot-config/:botId/:metaCode', verifyToken, MakeAFlowForABot);
+router.get('/bots-config/flow/:botId/:metaCode', verifyToken, GetBotFlow);
 
 
 

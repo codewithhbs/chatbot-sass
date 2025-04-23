@@ -118,7 +118,7 @@ const Bookings = () => {
         try {
             // In a real implementation, you would include filters in the API call
             const response = await axios.get(
-                `https://api.chatbot.adsdigitalmedia.com/api/auth/get-my-booking?metacode=${selectedMetaCode || bots[0].metaCode}&page=${currentPage}&limit=${limit}`,
+                `http://localhost:7400/api/auth/get-my-booking?metacode=${selectedMetaCode || bots[0].metaCode}&page=${currentPage}&limit=${limit}`,
             )
 
             // Apply client-side filtering (in a real app, this would be done server-side)
@@ -175,8 +175,8 @@ const Bookings = () => {
         try {
             const url =
                 newStatus === "cancelled"
-                    ? `https://api.chatbot.adsdigitalmedia.com/api/auth/booking-status/cancel/${bookingId}`
-                    : `https://api.chatbot.adsdigitalmedia.com/api/auth/booking-status/confirm/${bookingId}`;
+                    ? `http://localhost:7400/api/auth/booking-status/cancel/${bookingId}`
+                    : `http://localhost:7400/api/auth/booking-status/confirm/${bookingId}`;
 
             await axios.post(url, {
                 cancelReason: newStatus === "cancelled" ? cancelReason : undefined,
@@ -207,7 +207,7 @@ const Bookings = () => {
 
         try {
 
-            await axios.put(`https://api.chatbot.adsdigitalmedia.com/api/auth/booking-status/update/${selectedBooking._id}`, editForm)
+            await axios.put(`http://localhost:7400/api/auth/booking-status/update/${selectedBooking._id}`, editForm)
 
             // For demo purposes, we'll update the state directly
             setBookings(
@@ -229,7 +229,7 @@ const Bookings = () => {
 
         try {
             // In a real implementation, you would make an API call here
-            await axios.delete(`https://api.chatbot.adsdigitalmedia.com/api/auth/booking-status/delete/${selectedBooking._id}`)
+            await axios.delete(`http://localhost:7400/api/auth/booking-status/delete/${selectedBooking._id}`)
 
             // For demo purposes, we'll update the state directly
             setBookings(bookings.filter((booking) => booking._id !== selectedBooking._id))
