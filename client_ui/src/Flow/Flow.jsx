@@ -44,7 +44,7 @@ const FlowChatbot = () => {
       setIsLoading(true)
       try {
         // Replace with your actual API endpoint
-        const response = await axios.get(`http://localhost:7400/api/auth/bots-config/flow/${id}/${metaCode}`, {
+        const response = await axios.get(`https://api.chatbot.adsdigitalmedia.com/api/auth/bots-config/flow/${id}/${metaCode}`, {
           headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${token}`,
@@ -411,7 +411,7 @@ const FlowChatbot = () => {
 
     try {
       const response = await axios.post(
-        `http://localhost:7400/api/auth/bot-config/${id}/${metaCode}`,
+        `https://api.chatbot.adsdigitalmedia.com/api/auth/bot-config/${id}/${metaCode}`,
         payload,
         {
           headers: {

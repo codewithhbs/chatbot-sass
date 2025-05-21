@@ -31,7 +31,7 @@ const SignUpPage = () => {
     setIsLoading(true);
 
     try {
-      const res = await axios.post("http://localhost:7400/api/auth/register", {
+      const res = await axios.post("https://api.chatbot.adsdigitalmedia.com/api/auth/register", {
         name,
         email,
         password
@@ -56,7 +56,7 @@ const SignUpPage = () => {
     console.log("Google decoded data:", decoded);
 
     try {
-      const res = await axios.post("http://localhost:7400/api/auth/google-login", {
+      const res = await axios.post("https://api.chatbot.adsdigitalmedia.com/api/auth/google-login", {
         token: credentialResponse.credential
       });
 

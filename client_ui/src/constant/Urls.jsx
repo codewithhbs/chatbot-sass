@@ -1,1 +1,1 @@
-export const API_URL = "http://localhost:7400/api"; 
+export const API_URL = "https://api.chatbot.adsdigitalmedia.com/api"; 

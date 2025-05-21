@@ -28,7 +28,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 
 // Create axios instance with base URL and default headers
 const api = axios.create({
-    baseURL: "http://localhost:7400/api/auth",
+    baseURL: "https://api.chatbot.adsdigitalmedia.com/api/auth",
     timeout: 10000,
 })
 

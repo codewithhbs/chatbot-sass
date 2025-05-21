@@ -67,7 +67,7 @@ const AllBots = () => {
     setLoading(true);
     try {
       const res = await axios.get(
-        `http://localhost:7400/api/auth/get-my-chatbot?token=${token}`
+        `https://api.chatbot.adsdigitalmedia.com/api/auth/get-my-chatbot?token=${token}`
       );
       setBots(res.data);
     } catch (err) {
@@ -88,7 +88,7 @@ const AllBots = () => {
 
     try {
       const res = await axios.post(
-        `http://localhost:7400/api/auth/check-meta-code?token=${token}`,
+        `https://api.chatbot.adsdigitalmedia.com/api/auth/check-meta-code?token=${token}`,
         {
           url: websiteUrl,
           metaCode: metaCode,
@@ -133,7 +133,7 @@ const AllBots = () => {
 
     try {
       await axios.delete(
-        `http://localhost:7400/api/auth/delete-chatbot/${botToDelete._id}?token=${token}`
+        `https://api.chatbot.adsdigitalmedia.com/api/auth/delete-chatbot/${botToDelete._id}?token=${token}`
       );
       toast.success("Chatbot deleted successfully", {
         icon: <CheckCircle className="h-5 w-5 text-green-500" />
@@ -223,7 +223,7 @@ const AllBots = () => {
 
       // API call to update the bot info
       await axios.post(
-        `http://localhost:7400/api/auth/update-chatbot/${selectedBot._id}?token=${token}`,
+        `https://api.chatbot.adsdigitalmedia.com/api/auth/update-chatbot/${selectedBot._id}?token=${token}`,
         {
           info: updatedInfo,
           titleShowAtChatBot: editFormData.titleShowAtChatBot,
