@@ -68,6 +68,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children, metaCo
     });
 
     socketInstance.on('website_info', (info: WebsiteInfo) => {
+      console.log('Website Info:', info);
       setWebsiteInfo(info);
     });
 

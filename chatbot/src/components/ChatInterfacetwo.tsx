@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react"
 import { useSocket } from "../context/SocketContext"
 import MessageList from "./MessageList"
 import MessageInput from "./MessageInput"
-import ServiceSelection from "./ServiceSelection"
+
 import DateSelection from "./DateSelection"
 import ContactDetails from "./ContactDetails"
 import ChatHeader from "./ChatHeader"
@@ -32,10 +32,13 @@ const ChatInterfacetwo: React.FC = () => {
   // Toggle chat visibility
   const toggleChat = () => {
     setIsChatOpen((prev) => !prev)
-    
+
     // When opening chat for the first time, initialize it
-    if (!isChatOpen && socket && messages.length === 0) {
+    if (!isChatOpen && socket) {
+      console.log("Emitting start_chat event");
       socket.emit("start_chat", {})
+    } else {
+      console.log("Chat already open or socket not available");
     }
   }
 
@@ -84,13 +87,13 @@ const ChatInterfacetwo: React.FC = () => {
     socket.on("show_options", handleShowOptions)
     socket.on("_show_date_picker", handleShowDatePicker)
     socket.on("blueace_contact_details", handleContactDetails)
-    
+
     // Legacy events for backward compatibility
     socket.on("_show_categories", (categoryData: Category[]) => {
       setOptions(categoryData.map(cat => cat.category))
       setShowOptions(true)
     })
-    
+
     socket.on("_show_services", (serviceData: string[]) => {
       setOptions(serviceData)
       setShowOptions(true)
@@ -151,7 +154,7 @@ const ChatInterfacetwo: React.FC = () => {
   // Component for displaying options (used for both categories and services)
   const OptionsSelection = ({ options, onOptionSelect }: { options: string[], onOptionSelect: (option: string) => void }) => {
     if (!options || options.length === 0) return null;
-    
+
     return (
       <div className="flex flex-col space-y-2 animate-fadeIn">
         {options.map((option, index) => (

@@ -29,6 +29,9 @@ const bookingSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    Booking_id: {
+        type: String,
+    },
     chatId: {
         type: String,
         required: true
@@ -38,7 +41,7 @@ const bookingSchema = new mongoose.Schema({
         enum: ['pending', 'confirmed', 'completed', 'cancelled'],
         default: 'pending'
     },
-    cancelReason:{
+    cancelReason: {
         type: String,
         default: null
     },
