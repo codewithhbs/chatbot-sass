@@ -22,7 +22,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
+    <div className="h-auto flex items-center justify-center">
       <SocketProvider type={type} metaCode={metaCode}>
         {/* <Background /> */}
         {type === "custom" ? (

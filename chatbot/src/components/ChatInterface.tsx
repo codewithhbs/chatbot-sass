@@ -1,5 +1,4 @@
-import type React from "react"
-import { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { useSocket } from "../context/SocketContext"
 import MessageList from "./MessageList"
 import MessageInput from "./MessageInput"
@@ -11,138 +10,212 @@ import LoadingIndicator from "./LoadingIndicator"
 import ErrorMessage from "./ErrorMessage"
 import type { Message, Category, Service, ContactDetailsType } from "../types"
 
+// Local storage helper with timestamp
+const createStorageKey = (websiteInfo: any) => {
+  return `chat_session_${websiteInfo?.domain || 'default'}`
+}
+
+const getStoredSession = (key: string) => {
+  try {
+    const stored = localStorage.getItem(key)
+    if (!stored) return null
+
+    const data = JSON.parse(stored)
+    const now = Date.now()
+    const sessionAge = now - data.timestamp
+
+    // Reset after 24 hours
+    if (sessionAge > 24 * 60 * 60 * 1000) {
+      localStorage.removeItem(key)
+      return null
+    }
+
+    return data
+  } catch {
+    return null
+  }
+}
+
+const setStoredSession = (key: string, data: any) => {
+  try {
+    localStorage.setItem(key, JSON.stringify({
+      ...data,
+      timestamp: Date.now()
+    }))
+  } catch {
+    // Handle storage quota exceeded
+  }
+}
+
+// Custom hook for chat state management
+const useChatState = (websiteInfo: any) => {
+  const storageKey = useMemo(() => createStorageKey(websiteInfo), [websiteInfo])
+
+  const [state, setState] = useState(() => {
+    const stored = getStoredSession(storageKey)
+    return {
+      messages: stored?.messages || [],
+      isChatOpen: stored?.isChatOpen || false,
+      chatEnded: stored?.chatEnded || false,
+      ...stored
+    }
+  })
+
+  // Debounced save to localStorage
+  const saveTimeoutRef = useRef<NodeJS.Timeout>()
+
+  const updateState = useCallback((updates: Partial<typeof state>) => {
+    setState(prev => {
+      const newState = { ...prev, ...updates }
+
+      // Debounced save
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+      }
+
+      saveTimeoutRef.current = setTimeout(() => {
+        setStoredSession(storageKey, newState)
+      }, 1000)
+
+      return newState
+    })
+  }, [storageKey])
+
+  return [state, updateState] as const
+}
+
 const ChatInterface: React.FC = () => {
   const { socket, isConnected, loading, error, websiteInfo } = useSocket()
-  const [messages, setMessages] = useState<Message[]>([])
+  const [chatState, updateChatState] = useChatState(websiteInfo)
   const [isTyping, setIsTyping] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
   const [services, setServices] = useState<Service[]>([])
   const [showServiceSelection, setShowServiceSelection] = useState(false)
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [phoneError, setPhoneError] = useState("")
-  const [showContactDetails, setShowContactDetails] = useState(false)
   const [contactDetails, setContactDetails] = useState<ContactDetailsType | null>(null)
-  const [chatEnded, setChatEnded] = useState(false)
-  const [bookingComplete, setBookingComplete] = useState(false)
-  const [complaintComplete, setComplaintComplete] = useState(false)
   const [complaintText, setComplaintText] = useState("")
   const [showComplaintForm, setShowComplaintForm] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const chatContainerRef = useRef<HTMLDivElement>(null)
 
-  // New state for chat visibility
-  const [isChatOpen, setIsChatOpen] = useState(false)
-  console.log("websiteInfo", websiteInfo)
-  // Toggle chat visibility
-  const toggleChat = () => {
-    setIsChatOpen((prev) => !prev)
-
-    // When opening chat for the first time, initialize it
-    if (!isChatOpen && socket) {
-      console.log("Emitting start_chat event");
-      socket.emit("start_chat", {})
-    } else {
-      console.log("Chat already open or socket not available");
+  // Detect if running in iframe
+  const isInIframe = useMemo(() => {
+    try {
+      return window.self !== window.top
+    } catch {
+      return true
     }
-  }
+  }, [])
 
-  // Scroll to bottom when messages update
+  // Auto-scroll with smooth behavior
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "end"
+    })
+  }, [])
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages, showContactDetails, showComplaintForm])
+    scrollToBottom()
+  }, [chatState.messages, scrollToBottom])
 
-  // Set up socket event listeners
+  // Initialize chat when opening for first time
+  const initializeChat = useCallback(() => {
+    if (socket && !chatState.chatEnded) {
+      console.log("Initializing chat session")
+      socket.emit("start_chat", { websiteInfo })
+    }
+  }, [socket, chatState.chatEnded, websiteInfo])
+
+  // Toggle chat visibility
+  const toggleChat = useCallback(() => {
+    const newState = !chatState.isChatOpen
+    updateChatState({ isChatOpen: newState })
+
+    if (newState && !chatState.messages.length) {
+      initializeChat()
+    }
+  }, [chatState.isChatOpen, chatState.messages.length, updateChatState, initializeChat])
+
+  // Socket event handlers
   useEffect(() => {
     if (!socket) return
 
     const handleChunk = (data: { chunk?: string }) => {
       setIsTyping(true)
-      setMessages((prev) => {
-        const last = prev[prev.length - 1]
-        if (last?.sender === "ai") {
-          return [...prev.slice(0, -1), { ...last, text: last.text + (data?.chunk || "") }]
+      updateChatState(prev => {
+        const messages = [...prev.messages]
+        const lastMessage = messages[messages.length - 1]
+
+        if (lastMessage?.sender === "ai") {
+          lastMessage.text += data?.chunk || ""
         } else {
-          return [...prev, { sender: "ai", text: data?.chunk || "" }]
+          messages.push({ sender: "ai", text: data?.chunk || "" })
         }
+
+        return { messages }
       })
     }
 
-    const handleShowCategories = (categoryData: Category[]) => {
-      setCategories(categoryData)
-    }
+    const handleComplete = () => setIsTyping(false)
+    const handleShowCategories = (categoryData: Category[]) => setCategories(categoryData)
+    const handleShowServices = (serviceData: string[]) =>
+      setServices(serviceData.map(name => ({ name })))
+    const handleShowDatePicker = () => setShowDatePicker(true)
+    const handleContactDetails = (details: ContactDetailsType) => setContactDetails(details)
+    const handleBookingComplete = () => updateChatState({ bookingComplete: true })
+    const handleComplaintComplete = () => updateChatState({ complaintComplete: true })
+    const handleShowComplaintForm = () => setShowComplaintForm(true)
 
-    const handleShowServices = (serviceData: string[]) => {
-      setServices(serviceData.map((name) => ({ name })))
-    }
+    // Register event listeners
+    const events = [
+      ["ai_reply", handleChunk],
+      ["ai_complete", handleComplete],
+      ["_show_categories", handleShowCategories],
+      ["_show_services", handleShowServices],
+      ["_show_date_picker", handleShowDatePicker],
+      ["blueace_contact_details", handleContactDetails],
+      ["booking_done", handleBookingComplete],
+      ["complaint_done", handleComplaintComplete],
+      ["show_complaint_form", handleShowComplaintForm],
+    ] as const
 
-    const handleComplete = () => {
-      setIsTyping(false)
-    }
-
-    const handleShowDatePicker = () => {
-      setShowDatePicker(true)
-    }
-
-    const handleContactDetails = (details: ContactDetailsType) => {
-      setContactDetails(details)
-      setShowContactDetails(true)
-    }
-
-    const handleBookingComplete = () => {
-      setBookingComplete(true)
-    }
-
-    const handleComplaintComplete = () => {
-      setComplaintComplete(true)
-    }
-
-    socket.on("ai_reply", handleChunk)
-    socket.on("ai_complete", handleComplete)
-    socket.on("_show_categories", handleShowCategories)
-    socket.on("_show_services", handleShowServices)
-    socket.on("_show_date_picker", handleShowDatePicker)
-    socket.on("blueace_contact_details", handleContactDetails)
-    socket.on("booking_done", handleBookingComplete)
-    socket.on("complaint_done", handleComplaintComplete)
-    socket.on("show_complaint_form", () => setShowComplaintForm(true))
+    events.forEach(([event, handler]) => socket.on(event, handler))
 
     return () => {
-      socket.off("ai_reply", handleChunk)
-      socket.off("ai_complete", handleComplete)
-      socket.off("_show_categories", handleShowCategories)
-      socket.off("_show_services", handleShowServices)
-      socket.off("_show_date_picker", handleShowDatePicker)
-      socket.off("blueace_contact_details", handleContactDetails)
-      socket.off("booking_done", handleBookingComplete)
-      socket.off("complaint_done", handleComplaintComplete)
-      socket.off("show_complaint_form", () => setShowComplaintForm(false))
+      events.forEach(([event, handler]) => socket.off(event, handler))
     }
-  }, [socket])
+  }, [socket, updateChatState])
 
-  const handleCategorySelect = (category: string) => {
+  // Message handlers
+  const handleSendMessage = useCallback((text: string) => {
+    if (!socket || !text.trim() || chatState.chatEnded) return
+
+    const newMessage = { sender: "user" as const, text }
+    updateChatState(prev => ({
+      messages: [...prev.messages, newMessage]
+    }))
+
+    socket.emit("user_message", { message: text })
+    setIsTyping(true)
+  }, [socket, chatState.chatEnded, updateChatState])
+
+  const handleCategorySelect = useCallback((category: string) => {
     if (!socket) return
-
     socket.emit("user_category_selected", category)
     setShowServiceSelection(true)
-  }
+  }, [socket])
 
-  const handleServiceSelect = (service: string) => {
+  const handleServiceSelect = useCallback((service: string) => {
     if (!socket) return
-
     socket.emit("user_service_selected", service)
     setServices([])
     setCategories([])
     setShowServiceSelection(false)
-  }
+  }, [socket])
 
-  const handleSendMessage = (text: string) => {
-    if (!socket || !text.trim() || chatEnded) return
-
-    socket.emit("user_message", { message: text })
-    setMessages((prev) => [...prev, { sender: "user", text: text }])
-    setIsTyping(true)
-  }
-
-  const handleDateSelect = (date: Date) => {
+  const handleDateSelect = useCallback((date: Date) => {
     if (!socket) return
 
     const formattedDate = date.toLocaleDateString("en-US", {
@@ -152,64 +225,93 @@ const ChatInterface: React.FC = () => {
       day: "numeric",
     })
 
+    const newMessage = { sender: "user" as const, text: formattedDate }
+    updateChatState(prev => ({
+      messages: [...prev.messages, newMessage]
+    }))
+
     socket.emit("user_message", { message: formattedDate })
-    setMessages((prev) => [...prev, { sender: "user", text: formattedDate }])
     setShowDatePicker(false)
     setIsTyping(true)
-  }
+  }, [socket, updateChatState])
 
-  const handleComplaintSubmit = () => {
+  const handleComplaintSubmit = useCallback(() => {
     if (!socket || !complaintText.trim() || complaintText.length < 20) {
       setPhoneError("Please provide a detailed description (at least 20 characters)")
       return
     }
 
+    const newMessage = { sender: "user" as const, text: complaintText }
+    updateChatState(prev => ({
+      messages: [...prev.messages, newMessage]
+    }))
+
     socket.emit("user_message", { message: complaintText })
-    setMessages((prev) => [...prev, { sender: "user", text: complaintText }])
     setShowComplaintForm(false)
     setIsTyping(true)
     setPhoneError("")
-  }
+    setComplaintText("")
+  }, [socket, complaintText, updateChatState])
 
-  const endChat = () => {
+  const endChat = useCallback(() => {
     if (!socket) return
-
     socket.emit("booking_completed")
-    setChatEnded(true)
-  }
+    updateChatState({ chatEnded: true })
+  }, [socket, updateChatState])
 
-  const endComplaint = () => {
+  const endComplaint = useCallback(() => {
     if (!socket) return
-
     socket.emit("complaint_completed")
-    setChatEnded(true)
-  }
+    updateChatState({ chatEnded: true })
+  }, [socket, updateChatState])
 
-  const ComplaintForm = () => (
-    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-md animate-fadeIn mb-4">
-      <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200 mb-2">
-        Complaint Details
-      </h3>
-      <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">
-        Please describe your issue in detail (minimum 20 characters)
+  // Complaint form component
+  const ComplaintForm = useMemo(() => (
+    <div className="bg-gradient-to-br from-white to-blue-50 dark:from-gray-800 dark:to-gray-700 rounded-2xl p-6 shadow-lg border border-blue-100 dark:border-gray-600 animate-slideUp">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center">
+          <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
+          Tell us about your issue
+        </h3>
+      </div>
+
+      <p className="text-gray-600 dark:text-gray-400 text-sm mb-4 leading-relaxed">
+        Please describe your concern in detail so we can assist you better (minimum 20 characters)
       </p>
-      <textarea
-        className="w-full px-3 py-2 text-gray-700 dark:text-gray-300 border rounded-lg 
-                   focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 
-                   dark:border-gray-600 min-h-[100px]"
-        placeholder="Describe your issue here..."
-        value={complaintText}
-        onChange={(e) => setComplaintText(e.target.value)}
-      />
+
+      <div className="relative">
+        <textarea
+          className="w-full px-4 py-3 text-gray-700 dark:text-gray-300 border-2 border-gray-200 dark:border-gray-600 rounded-xl 
+                     focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 dark:bg-gray-700 
+                     transition-all duration-200 min-h-[120px] resize-none"
+          placeholder="Describe your issue here..."
+          value={complaintText}
+          onChange={(e) => setComplaintText(e.target.value)}
+        />
+        <div className="absolute bottom-3 right-3 text-xs text-gray-400">
+          {complaintText.length}/20 min
+        </div>
+      </div>
+
       {phoneError && (
-        <p className="text-red-500 text-xs mt-1">{phoneError}</p>
+        <div className="flex items-center gap-2 mt-3 text-red-500 text-sm">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          {phoneError}
+        </div>
       )}
-      <div className="flex justify-end mt-3">
+
+      <div className="flex justify-end mt-6">
         <button
           onClick={handleComplaintSubmit}
-          className={`px-4 py-2 rounded-lg text-white font-medium transition-colors ${complaintText.length >= 20
-              ? "bg-blue-600 hover:bg-blue-700"
-              : "bg-gray-400 cursor-not-allowed"
+          className={`px-6 py-3 rounded-xl font-medium transition-all duration-200 transform ${complaintText.length >= 20
+              ? "bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl hover:scale-105"
+              : "bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
             }`}
           disabled={complaintText.length < 20}
         >
@@ -217,156 +319,179 @@ const ChatInterface: React.FC = () => {
         </button>
       </div>
     </div>
-  )
+  ), [complaintText, phoneError, handleComplaintSubmit])
+
+  // Chat button for collapsed state
+  const ChatButton = useMemo(() => (
+    <button
+      onClick={toggleChat}
+      className="group fixed bottom-6 right-6 w-16 h-16 bg-gradient-to-r from-blue-600 to-blue-700 
+                 hover:from-blue-700 hover:to-blue-800 text-white rounded-full shadow-2xl 
+                 hover:shadow-blue-500/25 transition-all duration-300 transform hover:scale-110 
+                 z-50 animate-bounce-slow"
+      aria-label="Open chat"
+    >
+      <div className="relative flex items-center justify-center">
+        <svg
+          className="w-7 h-7 transition-transform duration-300 group-hover:scale-110"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+            d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        </svg>
+        {/* Notification dot */}
+        <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full animate-pulse" />
+      </div>
+    </button>
+  ), [toggleChat])
+
+  // Responsive container styles
+  const containerStyles = useMemo(() => {
+    const baseStyles = "fixed bg-white dark:bg-gray-900/98 backdrop-blur-xl border border-gray-200 dark:border-gray-700 shadow-2xl transition-all duration-500 ease-out z-50"
+
+    if (isInIframe) {
+      return `${baseStyles} inset-2 rounded-2xl`
+    }
+
+    // Desktop: bottom-right positioned
+    return `${baseStyles} bottom-6 right-6 w-96 h-[32rem] rounded-2xl animate-slideUp`
+  }, [isInIframe])
+
+  if (!chatState.isChatOpen) {
+    return ChatButton
+  }
 
   return (
-    <>
-      {!isChatOpen ? (
-        <div
-          className="fixed bottom-5 right-5 w-14 h-14 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg cursor-pointer hover:bg-blue-700 transition-all z-50"
-          onClick={toggleChat}
+    <div className={containerStyles} ref={chatContainerRef}>
+      {/* Close button */}
+      <button
+        onClick={toggleChat}
+        className="absolute top-4 right-4 z-10 w-10 h-10 flex items-center justify-center rounded-full 
+                   bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 
+                   hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300
+                   transition-all duration-200 group"
+        aria-label="Close chat"
+      >
+        <svg
+          className="w-5 h-5 transition-transform duration-200 group-hover:rotate-90"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-          </svg>
-        </div>
-      ) : (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="w-full  mx-auto bg-white/95 dark:bg-gray-900/95 backdrop-blur-md rounded-xl overflow-hidden border border-blue-100 dark:border-blue-900 shadow-xl flex flex-col relative">
-            <button
-              onClick={toggleChat}
-              className="absolute top-3 right-3 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+
+      {/* Header */}
+      <ChatHeader title={websiteInfo?.title || "AI Assistant"} chatEnded={chatState.chatEnded} />
+
+      {/* Main chat area */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
+        {loading && <LoadingIndicator />}
+        {error && <ErrorMessage message={error} />}
+
+        {/* Welcome state */}
+        {isConnected && chatState.messages.length === 0 && (
+          <div className="h-full flex flex-col items-center justify-center text-center p-6 animate-fadeIn">
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/30 flex items-center justify-center mb-6 animate-pulse">
+              <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
-            </button>
-
-            <ChatHeader title={websiteInfo?.title || "AI Assistant"} chatEnded={chatEnded} />
-
-            <div className="flex-1 overflow-y-auto px-4 py-5 space-y-4">
-              {loading && <LoadingIndicator />}
-
-              {error && <ErrorMessage message={error} />}
-
-              {isConnected && messages.length === 0 && (
-                <div className="h-full flex flex-col items-center justify-center text-center p-6">
-                  <div className="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mb-4">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="24"
-                      height="24"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="text-blue-500"
-                    >
-                      <path d="M12 3v5m0 4v3m-3-8 1.5 2.5M8.4 4.6 6 7m12-2.4L15.6 7m-8.3 5.4L4.8 10M18 10l-2.5 2.4" />
-                      <circle cx="12" cy="12" r="10" />
-                    </svg>
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">
-                    Welcome to {websiteInfo?.title || "AI Assistant"}
-                  </h3>
-                  <p className="text-gray-500 dark:text-gray-400 max-w-xs">
-                    I'm here to assist you with bookings and complaints. May I know your name?
-                  </p>
-                </div>
-              )}
-
-              <MessageList messages={messages} />
-
-              {phoneError && !showComplaintForm && (
-                <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg p-3 text-red-600 dark:text-red-400 text-sm">
-                  {phoneError}
-                </div>
-              )}
-
-              {showComplaintForm && <ComplaintForm />}
-
-              <ServiceSelection
-                categories={categories}
-                services={services}
-                showServiceSelection={showServiceSelection}
-                onCategorySelect={handleCategorySelect}
-                onServiceSelect={handleServiceSelect}
-              />
-
-              {showDatePicker && <DateSelection onDateSelect={handleDateSelect} />}
-
-              {bookingComplete && !chatEnded && (
-                <div className="flex justify-center animate-fadeIn mt-4">
-                  <button
-                    onClick={endChat}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition-colors"
-                  >
-                    Complete Booking
-                  </button>
-                </div>
-              )}
-
-              {complaintComplete && !chatEnded && (
-                <div className="flex justify-center animate-fadeIn mt-4">
-                  <button
-                    onClick={endComplaint}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition-colors"
-                  >
-                    Submit Complaint
-                  </button>
-                </div>
-              )}
-
-              {chatEnded && contactDetails && (
-                <ContactDetails contactDetails={contactDetails} websiteTitle={websiteInfo?.title || "AI Assistant"} />
-              )}
-
-              <div ref={messagesEndRef} />
             </div>
-
-            {isTyping && (
-              <div className="flex items-center space-x-2 px-4 py-2 text-blue-500">
-                <div className="flex space-x-1">
-                  <span className="w-2 h-2 rounded-full bg-blue-500 animate-[bounce_1.4s_infinite_ease-in-out_0s]"></span>
-                  <span className="w-2 h-2 rounded-full bg-blue-500 animate-[bounce_1.4s_infinite_ease-in-out_0.2s]"></span>
-                  <span className="w-2 h-2 rounded-full bg-blue-500 animate-[bounce_1.4s_infinite_ease-in-out_0.4s]"></span>
-                </div>
-                <p className="text-xs text-blue-500 font-light">Assistant is typing...</p>
-              </div>
-            )}
-
-            <MessageInput
-              onSendMessage={handleSendMessage}
-              disabled={!isConnected || loading || chatEnded || showDatePicker || showComplaintForm}
-            />
+            <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-3">
+              Welcome to {websiteInfo?.title || "AI Assistant"}
+            </h3>
+            <p className="text-gray-500 dark:text-gray-400 max-w-xs leading-relaxed">
+              I'm here to assist you with bookings and complaints. How can I help you today?
+            </p>
           </div>
+        )}
+
+        <MessageList messages={chatState.messages} />
+
+        {/* Error messages */}
+        {phoneError && !showComplaintForm && (
+          <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-xl p-4 text-red-600 dark:text-red-400 text-sm animate-slideUp">
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              {phoneError}
+            </div>
+          </div>
+        )}
+
+        {/* Forms and selections */}
+        {showComplaintForm && ComplaintForm}
+
+        <ServiceSelection
+          categories={categories}
+          services={services}
+          showServiceSelection={showServiceSelection}
+          onCategorySelect={handleCategorySelect}
+          onServiceSelect={handleServiceSelect}
+        />
+
+        {showDatePicker && <DateSelection onDateSelect={handleDateSelect} />}
+
+        {/* Action buttons */}
+        {chatState.bookingComplete && !chatState.chatEnded && (
+          <div className="flex justify-center animate-fadeIn">
+            <button
+              onClick={endChat}
+              className="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 
+                         text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+            >
+              Complete Booking
+            </button>
+          </div>
+        )}
+
+        {chatState.complaintComplete && !chatState.chatEnded && (
+          <div className="flex justify-center animate-fadeIn">
+            <button
+              onClick={endComplaint}
+              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 
+                         text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+            >
+              Submit Complaint
+            </button>
+          </div>
+        )}
+
+        {/* Contact details */}
+        {chatState.chatEnded && contactDetails && (
+          <ContactDetails
+            contactDetails={contactDetails}
+            websiteTitle={websiteInfo?.title || "AI Assistant"}
+          />
+        )}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Typing indicator */}
+      {isTyping && (
+        <div className="flex items-center gap-3 px-4 py-3 text-blue-500 bg-blue-50 dark:bg-blue-900/20 border-t border-blue-100 dark:border-blue-800">
+          <div className="flex gap-1">
+            <div className="w-2 h-2 rounded-full bg-blue-500 animate-bounce [animation-delay:-0.3s]" />
+            <div className="w-2 h-2 rounded-full bg-blue-500 animate-bounce [animation-delay:-0.15s]" />
+            <div className="w-2 h-2 rounded-full bg-blue-500 animate-bounce" />
+          </div>
+          <p className="text-sm font-medium">Assistant is typing...</p>
         </div>
       )}
-    </>
+
+      {/* Message input */}
+      <MessageInput
+        onSendMessage={handleSendMessage}
+        disabled={!isConnected || loading || chatState.chatEnded || showDatePicker || showComplaintForm}
+      />
+    </div>
   )
 }
 
-export default ChatInterface
+export default React.memo(ChatInterface)
