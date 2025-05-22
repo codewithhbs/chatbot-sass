@@ -6,6 +6,7 @@ const { websiteSchemaEnter, checkMetaCode, get_my_chatBots, getMyChatBotDetailsB
 const { create, getAll, getById, update, remove, addSubCategory, deleteSubCategory } = require("../controller/ServiceController");
 const { get_my_booking, get_dashboard_data, deleteBooking, confirmBooking, cancelBooking, updateBookingDetails, getUniqueCustomersByMetaCode } = require("../controller/BookingController");
 const { MakeAFlowForABot, GetBotFlow } = require("../controller/FlowController");
+const { getComplaintsViaChatBotId, changeStatusOfComplaints } = require("../controller/Connection");
 const router = express.Router();
 
 router.post("/google-login", googleLogin);
@@ -62,5 +63,11 @@ router.post('/booking-status/confirm/:id', confirmBooking);
 router.post('/booking-status/cancel/:id', cancelBooking);
 router.put('/booking-status/update/:id', updateBookingDetails);
 router.get('/meta-user/:metaCode', verifyToken, getUniqueCustomersByMetaCode);
+
+
+
+// Complaints
+router.get('/complaints', getComplaintsViaChatBotId);
+router.post('/change-status-complains', changeStatusOfComplaints);
 
 module.exports = router;

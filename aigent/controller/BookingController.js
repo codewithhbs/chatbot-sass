@@ -191,33 +191,39 @@ exports.confirmBooking = async (req, res) => {
 
     booking.status = "confirmed";
     await booking.save();
-    return res.status(200).json({ message: "Booking successfully confirmed!" });
+    return res.status(200).json({ success: true, message: "Booking successfully confirmed!" });
   } catch (error) {
     console.error("Error in confirmBooking:", error);
-    return res.status(500).json({ message: "Something went wrong while confirming the booking. Please try again." });
+    return res.status(500).json({ success: false, message: "Something went wrong while confirming the booking. Please try again." });
   }
 };
 
 exports.cancelBooking = async (req, res) => {
   try {
     const { id: bookingId } = req.params;
-
     const { cancelReason } = req.body;
-    if (!bookingId) return res.status(400).json({ message: "Booking ID is required to cancel the booking." });
+
+    if (!bookingId) {
+      return res.status(400).json({ success: false, message: "Booking ID is required to cancel the booking." });
+    }
 
     const booking = await BookingSchema.findById(bookingId);
     const statusCheck = checkBookingStatus(booking, ['pending', 'confirmed']);
-    if (statusCheck) return res.status(statusCheck.status).json({ message: statusCheck.message });
+    if (statusCheck) {
+      return res.status(statusCheck.status).json({ success: false, message: statusCheck.message });
+    }
 
     booking.status = "cancelled";
     booking.cancelReason = cancelReason || "No reason provided";
     await booking.save();
-    return res.status(200).json({ message: "Booking successfully cancelled." });
+
+    return res.status(200).json({ success: true, message: "Booking successfully cancelled." });
   } catch (error) {
     console.error("Error in cancelBooking:", error);
-    return res.status(500).json({ message: "Something went wrong while cancelling the booking. Please try again." });
+    return res.status(500).json({ success: false, message: "Something went wrong while cancelling the booking. Please try again." });
   }
 };
+
 
 exports.updateBookingDetails = async (req, res) => {
   try {
