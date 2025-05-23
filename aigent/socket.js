@@ -431,7 +431,7 @@ exports.handleSocket = async (socket, metaCode) => {
                                 'admin_new_complain',
                                 [newComplaint.complaintId, newComplaint.name, newComplaint.phone, newComplaint?.selectedCategory, newComplaint?.selectedService, new Date(newComplaint.createdAt).toDateString(), newComplaint?.status]
                             )
-                            console.log(`Admin SMS notification sent to ${user.phone} for complaint ${user.complaintId}`);
+                            console.log(`Admin SMS notification sent to for complaint ${user.complaintId}`);
                         } catch (smsError) {
                             console.error("Failed to send SMS notification:", smsError);
                         }

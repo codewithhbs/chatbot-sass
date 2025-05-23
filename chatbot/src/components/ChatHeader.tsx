@@ -34,15 +34,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ title, chatEnded, onClose }) =>
         </div>
       </div>
       
-      <button
-        onClick={onClose}
-        className="w-9 h-9 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-sm
-                  hover:bg-white/20 transition-all duration-200 focus:outline-none focus:ring-2 
-                  focus:ring-white/50 text-white"
-        aria-label="Close chat"
-      >
-        <X size={18} />
-      </button>
+      
     </div>
   );
 };
