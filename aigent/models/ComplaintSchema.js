@@ -26,6 +26,14 @@ const ComplaintSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+   address: {
+    type: String,
+    required: true
+  },
+  serviceDate: {
+    type: String,
+    required: true
+  },
   metaCode: {
     type: String,
     required: true
