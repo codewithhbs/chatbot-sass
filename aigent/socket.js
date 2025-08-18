@@ -261,52 +261,37 @@ exports.handleSocket = async (socket, metaCode) => {
                     }
                     user.phone = cleanPhone;
                     await updateChatUserInfo({ phone: user.phone });
-
-                    // Ask if the user wants to make a booking or file a complaint
                     await sendChunks(socket, messages.purposeQuestion(user.name));
                     await addMessageToChat("bot", messages.purposeQuestion(user.name));
                     user.step = 1.5;
                     break;
 
                 case 1.5:
-                    // Process user purpose (booking or complaint)
                     const purpose = message.trim().toLowerCase();
                     if (purpose === "booking" || purpose.includes("book")) {
                         user.userPurpose = "booking";
                         await updateChatUserInfo({ userPurpose: "booking" });
-
-                        // Continue with booking flow
                         await sendChunks(socket, messages.phoneResponse(user.name));
                         await addMessageToChat("bot", messages.phoneResponse(user.name));
                         user.step = 2;
-
-                        // Filter and prepare service categories that have bookingAllowed=true
                         const availableServices = servicesList.filter(service => service.bookingAllowed);
                         const categories = availableServices.map(service => ({
                             category: service.name,
                             description: service.description
                         }));
-
                         socket.emit("_show_categories", categories);
-                    }
-                    else if (purpose === "complaint" || purpose.includes("complain")) {
+                    } else if (purpose === "complaint" || purpose.includes("complain")) {
                         user.userPurpose = "complaint";
                         await updateChatUserInfo({ userPurpose: "complaint" });
-
-                        // Start complaint flow
                         await sendChunks(socket, "Please select the category related to your complaint:");
                         await addMessageToChat("bot", "Please select the category related to your complaint:");
-                        user.step = 10; // Different step for complaint flow
-
-                        // Show all service categories for complaints (not just bookable ones)
+                        user.step = 10;
                         const allCategories = servicesList.map(service => ({
                             category: service.name,
                             description: service.description
                         }));
-
                         socket.emit("_show_categories", allCategories);
-                    }
-                    else {
+                    } else {
                         await sendChunks(socket, messages.invalidPurpose);
                         await addMessageToChat("bot", messages.invalidPurpose);
                     }
@@ -315,14 +300,11 @@ exports.handleSocket = async (socket, metaCode) => {
                 case 2:
                     await sendChunks(socket, messages.helpResponse);
                     await addMessageToChat("bot", messages.helpResponse);
-
-                    // Show categories again (only those with bookingAllowed=true)
                     const availableServicesRefresh = servicesList.filter(service => service.bookingAllowed);
                     const categoriesRefresh = availableServicesRefresh.map(service => ({
                         category: service.name,
                         description: service.description
                     }));
-
                     socket.emit("_show_categories", categoriesRefresh);
                     user.step = 3;
                     break;
@@ -333,7 +315,6 @@ exports.handleSocket = async (socket, metaCode) => {
                         await addMessageToChat("bot", messages.invalidAddress);
                         break;
                     }
-
                     user.address = message;
                     await updateChatUserInfo({ address: user.address });
                     await sendChunks(socket, messages.addressResponse(user.address));
@@ -343,36 +324,25 @@ exports.handleSocket = async (socket, metaCode) => {
                     break;
 
                 case 5:
-                    // Date selected - check if booking is available
                     user.serviceDate = message;
-
-                    // Find the service document
                     const selectedService = await ServicesSchema.findOne({
                         metaCode: metaCode,
                         name: user.selectedCategory,
                         "subCategories.name": user.selectedService
                     });
-
                     if (!selectedService) {
                         await sendChunks(socket, "Sorry, this service is no longer available.");
                         await addMessageToChat("bot", "Sorry, this service is no longer available.");
                         break;
                     }
-
-                    // Store service ID for later use
                     user.selectedServiceId = selectedService._id;
-
-                    // Check availability
                     const availability = await checkBookingAvailability(selectedService._id, user.serviceDate);
-
                     if (!availability.available) {
                         await sendChunks(socket, messages.dateNotAvailable(user.serviceDate, user.selectedService));
                         await addMessageToChat("bot", messages.dateNotAvailable(user.serviceDate, user.selectedService));
-                        socket.emit("_show_date_picker"); // Ask to select another date
+                        socket.emit("_show_date_picker");
                         break;
                     }
-
-                    // Date is available, proceed with booking
                     await updateChatUserInfo({ serviceDate: user.serviceDate });
                     const confirmationMsg = messages.bookingConfirmation(user);
                     await sendChunks(socket, confirmationMsg);
@@ -381,82 +351,139 @@ exports.handleSocket = async (socket, metaCode) => {
                     user.step = 6;
                     break;
 
-                // Complaint flow - collect complaint description
+                // Complaint flow
+                case 10:
+                    user.selectedCategory = message;
+                    await updateChatUserInfo({ selectedCategory: user.selectedCategory });
+                    const selectedCategory = servicesList.find(service => service.name === user.selectedCategory);
+                    if (!selectedCategory || !selectedCategory.subCategories || selectedCategory.subCategories.length === 0) {
+                        await sendChunks(socket, "Invalid category or no services available for this category. Please select another category.");
+                        await addMessageToChat("bot", "Invalid category or no services available for this category. Please select another category.");
+                        const allCategories = servicesList.map(service => ({
+                            category: service.name,
+                            description: service.description
+                        }));
+                        socket.emit("_show_categories", allCategories);
+                        break;
+                    }
+                    await sendChunks(socket, `You've selected ${user.selectedCategory} for your complaint. Now choose a specific service from the list below:`);
+                    await addMessageToChat("bot", `You've selected ${user.selectedCategory} for your complaint. Now choose a specific service from the list below:`);
+                    socket.emit("_show_services", selectedCategory.subCategories.map(sub => ({
+                        name: sub.name,
+                        description: sub.description
+                    })));
+                    user.step = 10.5;
+                    break;
+
+                case 10.5:
+                    user.selectedService = message;
+                    const serviceCategory = servicesList.find(service => service.name === user.selectedCategory);
+                    const selectedSubCategory = serviceCategory?.subCategories.find(sub => sub.name === message);
+                    if (!selectedSubCategory) {
+                        await sendChunks(socket, "Invalid service. Please choose a valid service from the list.");
+                        await addMessageToChat("bot", "Invalid service. Please choose a valid service from the list.");
+                        socket.emit("_show_services", serviceCategory.subCategories.map(sub => ({
+                            name: sub.name,
+                            description: sub.description
+                        })));
+                        break;
+                    }
+                    await updateChatUserInfo({ selectedService: user.selectedService });
+                    await sendChunks(socket, `You chose ${user.selectedService} in ${user.selectedCategory}. Please provide details about your complaint (minimum 20 characters):`);
+                    await addMessageToChat("bot", `You chose ${user.selectedService} in ${user.selectedCategory}. Please provide details about your complaint (minimum 20 characters):`);
+                    user.step = 11;
+                    break;
+
                 case 11:
-                    // Validate the complaint description
                     if (!validateComplaintDescription(message)) {
                         await sendChunks(socket, messages.invalidComplaintDescription);
                         await addMessageToChat("bot", messages.invalidComplaintDescription);
                         break;
                     }
-
-                    // Save the complaint description
                     user.complaintDescription = message;
+                    await updateChatUserInfo({ complaintDescription: user.complaintDescription });
+                    await sendChunks(socket, "Please provide the address related to your complaint:");
+                    await addMessageToChat("bot", "Please provide the address related to your complaint:");
+                    user.step = 12;
+                    break;
 
-                    // Generate a unique complaint ID
+                case 12:
+                    if (!validateAddress(message)) {
+                        await sendChunks(socket, messages.invalidAddress);
+                        await addMessageToChat("bot", messages.invalidAddress);
+                        break;
+                    }
+                    user.address = message;
+                    await updateChatUserInfo({ address: user.address });
+                    await sendChunks(socket, messages.addressResponse(user.address));
+                    await addMessageToChat("bot", messages.addressResponse(user.address));
+                    socket.emit("_show_date_picker");
+                    user.step = 13;
+                    break;
+
+                case 13:
+                    user.serviceDate = message;
+                    await updateChatUserInfo({ serviceDate: user.serviceDate });
                     user.complaintId = generateComplaintId();
-
                     await updateChatUserInfo({
-                        complaintDescription: user.complaintDescription,
                         complaintId: user.complaintId
                     });
-
                     try {
-                        // Create a new complaint record
+                        const selectedService = await ServicesSchema.findOne({
+                            metaCode: metaCode,
+                            name: user.selectedCategory,
+                            "subCategories.name": user.selectedService
+                        });
+                        if (!selectedService) {
+                            await sendChunks(socket, "Sorry, this service is no longer available.");
+                            await addMessageToChat("bot", "Sorry, this service is no longer available.");
+                            break;
+                        }
+                        user.selectedServiceId = selectedService._id;
                         const newComplaint = new Complaint({
                             complaintId: user.complaintId,
                             name: user.name,
                             phone: user.phone,
                             selectedCategory: user.selectedCategory,
                             selectedService: user.selectedService,
+                            selectedServiceId: user.selectedServiceId,
+                            address: user.address,
+                            serviceDate: user.serviceDate,
                             description: user.complaintDescription,
                             metaCode: user.metaCode,
                             chatId: socket.chatId,
                             status: 'pending'
                         });
-
                         await newComplaint.save();
-
-                        // Send SMS notification to the user
                         try {
                             await SendWhatsapp(
                                 user.phone,
                                 'compain_text',
                                 [newComplaint.name, newComplaint.complaintId, new Date(newComplaint.createdAt).toDateString()]
                             );
-
                             console.log(`SMS notification sent to ${user.phone} for complaint ${user.complaintId}`);
                             await SendWhatsapp(
                                 '9311539090',
                                 'admin_new_complain',
-                                [newComplaint.complaintId, newComplaint.name, newComplaint.phone, newComplaint?.selectedCategory, newComplaint?.selectedService, new Date(newComplaint.createdAt).toDateString(), newComplaint?.status]
-                            )
-                            console.log(`Admin SMS notification sent to for complaint ${user.complaintId}`);
+                                [newComplaint.complaintId, newComplaint.name, newComplaint.phone, newComplaint.selectedCategory, newComplaint.selectedService, new Date(newComplaint.createdAt).toDateString(), newComplaint.status]
+                            );
+                            console.log(`Admin SMS notification sent for complaint ${user.complaintId}`);
                         } catch (smsError) {
                             console.error("Failed to send SMS notification:", smsError);
                         }
-
-                        // Show complaint confirmation
                         const complaintConfirmMsg = messages.complaintConfirmation(user);
                         await sendChunks(socket, complaintConfirmMsg);
                         await addMessageToChat("bot", complaintConfirmMsg);
-
-                        // Update chat status
                         await Chat.findOneAndUpdate(
                             { chatId: socket.chatId },
                             { $set: { status: 'completed', lastUpdated: new Date() } },
                             { new: true }
                         );
-
-                        // Thank you message
                         const thankYouMsg = messages.thankYouComplaint(user.name, user.complaintId);
                         await sendChunks(socket, thankYouMsg);
                         await addMessageToChat("bot", thankYouMsg);
-
-                        // Provide contact information
                         socket.emit("blueace_contact_details", getContactDetails(websiteData, user.name));
-
-                        user.step = 12; // Complete
+                        user.step = 14;
                     } catch (saveError) {
                         console.error("Error saving complaint:", saveError);
                         await sendChunks(socket, "We encountered an error while saving your complaint. Please try again.");
@@ -465,13 +492,11 @@ exports.handleSocket = async (socket, metaCode) => {
                     break;
 
                 default:
-                    if (user.userPurpose === "complaint" && user.step >= 10) {
-                        // For complaint flow
-                        const continuationMsg = "I'm here to assist you with your complaint. Please provide details about your concern.";
+                    if (user.userPurpose === "complaint lyr" && user.step >= 10) {
+                        const continuationMsg = "I'm here to assist you with your complaint. Let's continue where we left off.";
                         await sendChunks(socket, continuationMsg);
                         await addMessageToChat("bot", continuationMsg);
                     } else {
-                        // For booking flow
                         const continuationMsg = "I'm here to assist you with your booking. Let's continue where we left off.";
                         await sendChunks(socket, continuationMsg);
                         await addMessageToChat("bot", continuationMsg);
